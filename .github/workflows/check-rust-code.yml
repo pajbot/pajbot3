@@ -1,0 +1,41 @@
+on: [push, pull_request]
+
+name: Check Rust code
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      matrix:
+        os: [ ubuntu, windows, macOS ]
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: hecrj/setup-rust-action@v1
+      - uses: actions/cache@v2.1.6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # same checks as with `cargo build`, but no binaries are generated at the end, saving some time.
+      - run: cargo check --all-targets --all-features
+      - run: cargo test
+  check-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: stable
+          components: rustfmt
+      - run: cargo fmt -- --check
+  check-lints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: stable
+          components: clippy
+      - run: cargo clippy --all-targets --all-features -- -D warnings
