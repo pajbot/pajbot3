@@ -1,3 +1,6 @@
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
+
 use crate::args::Args;
 
 mod args;
