@@ -40,7 +40,7 @@ pub enum PgSslMode {
 pub enum PgHost {
     #[cfg(unix)]
     Unix {
-        path: PathBuf,
+        path: std::path::PathBuf,
         #[serde(default = "default_pg_port")]
         port: u16,
     },
