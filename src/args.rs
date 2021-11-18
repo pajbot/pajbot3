@@ -1,4 +1,4 @@
-use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg};
+use clap::{crate_name, crate_version, App, Arg};
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
