@@ -1,3 +1,9 @@
+use crate::args::Args;
+
+mod args;
+
 fn main() {
-    println!("Hello, world!");
+    let args = Args::parse();
+
+    dbg!(args);
 }
