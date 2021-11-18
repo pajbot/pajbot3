@@ -1,9 +1,9 @@
 #![deny(clippy::all)]
 #![deny(clippy::cargo)]
 
-use std::process;
 use crate::args::Args;
 use crate::config::Config;
+use std::process;
 
 mod args;
 mod config;

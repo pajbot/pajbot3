@@ -1,13 +1,13 @@
 mod database;
 
-use std::path::Path;
 use crate::config::database::DatabaseConfig;
 use serde::Deserialize;
+use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub database: DatabaseConfig
+    pub database: DatabaseConfig,
 }
 
 impl Config {
