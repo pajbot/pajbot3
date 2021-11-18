@@ -16,7 +16,7 @@ impl Args {
                     .short("c")
                     .long("config")
                     .value_name("FILE")
-                    .help("Set a custom config file to read")
+                    .help("File path to read config from")
                     .default_value_os(OsStr::new("config.toml"))
                     .takes_value(true),
             )
