@@ -16,6 +16,7 @@ impl Args {
             .arg(
                 Arg::with_name("config")
                     .short("c")
+                    .long("config")
                     .value_name("FILE")
                     .help("Set a custom config file to read")
                     .takes_value(true),
