@@ -4,6 +4,7 @@ name: Check Rust code
 
 jobs:
   build-and-test:
+    name: Build and test Rust code (${{ matrix.os }})
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
@@ -22,6 +23,7 @@ jobs:
       - run: cargo check --all-targets --all-features
       - run: cargo test
   check-format:
+    name: Check formatting of Rust code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
@@ -31,6 +33,7 @@ jobs:
           components: rustfmt
       - run: cargo fmt -- --check
   check-lints:
+    name: Run linter on Rust code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0

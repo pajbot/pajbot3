@@ -4,6 +4,7 @@ name: Check web code
 
 jobs:
   build-and-test:
+    name: Build and test web code (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,6 +21,7 @@ jobs:
       - run: npm test
         working-directory: ./web
   check-format:
+    name: Check formatting of web code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
