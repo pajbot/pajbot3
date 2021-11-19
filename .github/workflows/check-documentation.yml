@@ -1,0 +1,19 @@
+on: [push, pull_request]
+
+name: Check documentation
+
+jobs:
+  build-and-test:
+    name: Build and test documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: hecrj/setup-rust-action@v1
+      - run: cargo install mdbook --vers "^0.4.0"
+      - run: mdbook build docs
+      - run: mdbook test docs
+      - uses: actions/upload-artifact@v2
+        with:
+          name: book
+          path: |
+            target/book
