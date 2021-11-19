@@ -1,17 +1,3 @@
-# pajbot3 docs
+# pajbot3 documentation
 
-## Command line usage
-
-```
-pajbot3 0.1.0
-
-USAGE:
-    ./pajbot3 [OPTIONS]
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-OPTIONS:
-    -c, --config <FILE>    Set a custom config file to read [default: config.toml]
-```
+This is supposed to be the pajbot3 documentation, once it becomes usable it will serve the pajbot3 users and developers as a repository.
