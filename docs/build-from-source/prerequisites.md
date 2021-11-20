@@ -5,7 +5,7 @@
 For building the bot and the book, you will need to have a working installation of the Rust programming language - you may follow their guide: https://www.rust-lang.org/tools/install.
 Afterwards, you should have the `cargo` and `rustup` commands available at the command line, for example:
 
-```
+```none
 you@yourmachine:~$ rustup show
 Default host: x86_64-unknown-linux-gnu
 rustup home:  /home/you/.rustup
