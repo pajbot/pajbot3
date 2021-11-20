@@ -21,7 +21,7 @@ dbname = "pajbot3"
 #     { path = "/var/run/postgresql" }     (uses default port 5432)
 # Unix sockets can only be specified on Unix systems. On Windows and other systems a config specifying Unix
 # sockets will fail to parse.
-host = [ { path = "/var/run/postgresql" } ]
+host = [ { hostname = "/var/run/postgresql" } ]
 
 # Control options passed to the PostgreSQL server.
 # Below is just an example, see https://www.postgresql.org/docs/current/config-setting.html#id-1.6.6.4.5

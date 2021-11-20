@@ -10,16 +10,18 @@ mod config;
 
 #[tokio::main]
 async fn main() {
+    // install global collector configured based on RUST_LOG env var.
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
-    dbg!(&args);
+    tracing::debug!("Parsed args as {:?}", args);
 
     let config = match Config::load(&args.config_path).await {
         Ok(config) => config,
         Err(e) => {
-            // TODO use logger or something
-            eprintln!("Failed to load config: {}", e);
+            tracing::error!("Failed to load config: {}", e);
             process::exit(1);
         }
     };
-    dbg!(&config);
+    tracing::debug!("Successfully loaded config: {:?}", config);
 }
