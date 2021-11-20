@@ -1,6 +1,3 @@
-#![deny(clippy::all)]
-#![deny(clippy::cargo)]
-
 use crate::args::Args;
 use crate::config::Config;
 use std::process;
