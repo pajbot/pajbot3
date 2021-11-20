@@ -15,10 +15,9 @@ jobs:
       - uses: actions/cache@v2.1.6
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~/.cargo
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: build-and-test-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       # same checks as with `cargo build`, but no binaries are generated at the end, saving some time.
       - run: cargo check --all-targets --all-features
       - run: cargo test
@@ -41,4 +40,10 @@ jobs:
         with:
           rust-version: stable
           components: clippy
+      - uses: actions/cache@v2.1.6
+        with:
+          path: |
+            ~/.cargo
+            target
+          key: check-lints-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo clippy --all-targets --all-features -- -D warnings
