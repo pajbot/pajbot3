@@ -30,5 +30,6 @@ jobs:
           node-version: 16.x
       - run: npm ci
         working-directory: ./web
+        # npx --no-install uses the prettier version from package.json/package-lock.json
       - run: npx --no-install prettier --check .
         working-directory: ./web
