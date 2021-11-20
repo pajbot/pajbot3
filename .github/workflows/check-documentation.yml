@@ -20,10 +20,6 @@ jobs:
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
-      - run: find ~
-      - run: find /usr/share/rust
-      - run: command -v cargo
-      - run: command -v mdbook
       - uses: actions/upload-artifact@v2
         with:
           name: book
