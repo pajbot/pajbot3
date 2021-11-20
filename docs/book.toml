@@ -1,0 +1,8 @@
+[book]
+title = "pajbot3 documentation"
+description = "Supplementary documentation for the pajbot3 Twitch moderation bot."
+src = "."
+language = "en"
+
+[build]
+build-dir = "../target/book"
