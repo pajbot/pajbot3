@@ -38,5 +38,5 @@ Note that we currently support Node.js versions 12, 14 and 16 (Try `node --versi
 To build the book, you'll also need the [`mdbook` utility](https://github.com/rust-lang/mdBook) which can be installed using `cargo`:
 
 ```none
-$ cargo install mdbook --vers "^0.4.0"
+$ cargo install mdbook --vers "^0.4"
 ```

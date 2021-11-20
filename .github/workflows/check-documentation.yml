@@ -9,7 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: hecrj/setup-rust-action@v1
-      - run: cargo install mdbook --vers "^0.4.0"
+      - uses: actions/cache@v2.1.6
+        with:
+          path: ~/.cargo
+          key: mdbook-0.4
+      - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
       - uses: actions/upload-artifact@v2
