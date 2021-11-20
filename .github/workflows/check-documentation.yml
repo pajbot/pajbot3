@@ -12,7 +12,7 @@ jobs:
       - uses: actions/cache@v2.1.6
         with:
           path: ~/.cargo
-          key: mdbook-0.4
+          key: v2-mdbook-0.4
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
