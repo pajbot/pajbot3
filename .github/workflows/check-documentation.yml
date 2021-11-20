@@ -16,7 +16,9 @@ jobs:
             /usr/share/rust/.cargo/registry/index/
             /usr/share/rust/.cargo/registry/cache/
             /usr/share/rust/.cargo/git/db/
-          key: v3-mdbook-0.4
+            /usr/share/rust/.cargo/.crates.toml
+            /usr/share/rust/.cargo/.crates2.json
+          key: v4-mdbook-0.4
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
