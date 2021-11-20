@@ -16,6 +16,7 @@ jobs:
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
+      - run: find ~
       - uses: actions/upload-artifact@v2
         with:
           name: book
