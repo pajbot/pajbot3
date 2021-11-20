@@ -11,16 +11,20 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
       - uses: actions/cache@v2.1.6
         with:
-          path: ~/.cargo
-          key: v2-mdbook-0.4
+          path: |
+            /usr/share/rust/.cargo/bin/mdbook
+            /usr/share/rust/.cargo/registry/index/
+            /usr/share/rust/.cargo/registry/cache/
+            /usr/share/rust/.cargo/git/db/
+          key: v3-mdbook-0.4
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
       - run: find ~
+      - run: find /usr/share/rust
       - run: command -v cargo
       - run: command -v mdbook
       - uses: actions/upload-artifact@v2
         with:
           name: book
-          path: |
-            target/book
+          path: target/book
