@@ -12,8 +12,8 @@ impl Args {
         let matches = App::new(crate_name!())
             .version(crate_version!())
             .arg(
-                Arg::with_name("config")
-                    .short("c")
+                Arg::new("config")
+                    .short('c')
                     .long("config")
                     .value_name("FILE")
                     .help("File path to read config from")
