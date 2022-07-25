@@ -10,7 +10,7 @@ jobs:
       matrix:
         node-version: [12.x, 14.x, 16.x]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v2.5.0
         with:
           node-version: ${{ matrix.node-version }}
@@ -24,7 +24,7 @@ jobs:
     name: Check formatting of web code
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v2.5.0
         with:
           node-version: 16.x
