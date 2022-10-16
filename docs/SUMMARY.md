@@ -4,6 +4,7 @@
 - [Installation]()
 - [Command Line Interface](CommandLine.md) 
 - [Configuration File](ConfigurationFile.md)
+- [Logging](Logging.md)
 
 # Build from source
 
