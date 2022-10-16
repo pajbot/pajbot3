@@ -1,18 +1,16 @@
 use crate::api;
 use crate::api::twitch::auth::GetTokenError;
-use crate::api::twitch::user::UserDetails;
+use crate::web::auth::UserAuthorizationResponse;
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
 use axum::extract::rejection::QueryRejection;
 use axum::extract::Query;
 use axum::{Extension, Json};
-use chrono::{DateTime, Utc};
 use hyper::StatusCode;
 use rand::distributions::Standard;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt::Write;
-use crate::web::auth::UserAuthorizationResponse;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateAuthTokenQueryOptions {

@@ -2,9 +2,9 @@ pub mod create;
 //pub mod refresh;
 //pub mod require_auth;
 
+use crate::api::twitch::user::UserDetails;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use crate::api::twitch::user::UserDetails;
 
 #[derive(Serialize)]
 pub struct UserAuthorizationResponse {

@@ -1,5 +1,6 @@
 use crate::args::Args;
 use crate::config::Config;
+use clap::Parser;
 use futures::future::FusedFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;

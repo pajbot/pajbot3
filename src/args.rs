@@ -1,29 +1,9 @@
-use clap::{crate_name, crate_version, App, Arg};
-use std::ffi::OsStr;
+use clap::Parser;
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
 pub struct Args {
+    #[arg(short, long = "config", value_name = "FILE")]
     pub config_path: PathBuf,
-}
-
-impl Args {
-    pub fn parse() -> Args {
-        let matches = App::new(crate_name!())
-            .version(crate_version!())
-            .arg(
-                Arg::with_name("config")
-                    .short("c")
-                    .long("config")
-                    .value_name("FILE")
-                    .help("File path to read config from")
-                    .default_value_os(OsStr::new("config.toml"))
-                    .takes_value(true),
-            )
-            .get_matches();
-
-        let config_path = PathBuf::from(matches.value_of_os("config").unwrap());
-
-        Args { config_path }
-    }
 }
