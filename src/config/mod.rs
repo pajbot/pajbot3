@@ -1,13 +1,20 @@
-mod database;
+pub mod database;
+pub mod web;
 
+use crate::api::twitch;
 use crate::config::database::DatabaseConfig;
+use crate::config::web::WebConfig;
 use serde::Deserialize;
 use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     pub database: DatabaseConfig,
+    #[serde(default)]
+    pub web: WebConfig,
+    pub twitch_api: twitch::ApiClientCredentials,
 }
 
 impl Config {

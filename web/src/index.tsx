@@ -1,17 +1,9 @@
-import React from "react";
-import ReactDOM from "react-dom";
-import "./index.css";
-import App from "./App";
-import reportWebVitals from "./reportWebVitals";
+/* @refresh reload */
+import { render } from 'solid-js/web';
+import { Router } from '@solidjs/router';
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById("root")
-);
+import './index.css';
+import App from './App';
+import {AuthProvider} from "./AuthProvider";
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+render(() => <Router><AuthProvider><App /></AuthProvider></Router>, document.getElementById('root') as HTMLElement);

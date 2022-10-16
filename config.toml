@@ -1,3 +1,7 @@
+[twitch_api]
+client_id = "abcd"
+client_secret = "abcd"
+redirect_uri = "abcd"
 
 # Specify how we should connect to the PostgreSQL database server
 # most options are additionally documented here: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
@@ -40,7 +44,6 @@ host = [ { path = "/var/run/postgresql" } ]
 # Defaults to 2 hours
 #keepalives_idle = "2 hours"
 
+# TODO document ssl_mode
 # more supported options: application_name, ssl_mode, target_session_attrs, channel_binding
 # (usually irrelevant, search them up if you need them)
-# TLS (SSL) is not supported at the moment because there has been no demand. It can be added if needed.
-# Create a GitHub issue if you need TLS in your use case.
