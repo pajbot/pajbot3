@@ -1,15 +1,15 @@
-import { defineConfig } from 'vite';
-import solidPlugin from 'vite-plugin-solid';
+import { defineConfig } from "vite";
+import solidPlugin from "vite-plugin-solid";
 
 export default defineConfig({
   plugins: [solidPlugin()],
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:2791'
-    }
+      "/api": "http://localhost:2791",
+    },
   },
   build: {
-    target: 'esnext',
+    target: "esnext",
   },
 });
