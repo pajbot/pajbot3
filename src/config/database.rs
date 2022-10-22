@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio_postgres as postgres;
 
 /// Database config
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct DatabaseConfig {
     pub user: Option<String>,
@@ -25,6 +25,8 @@ pub struct DatabaseConfig {
     pub keepalives_idle: Duration,
     pub target_session_attrs: PgTargetSessionAttrs,
     pub channel_binding: PgChannelBinding,
+    #[serde(default)]
+    pub pool: PoolConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -132,6 +134,7 @@ impl From<postgres::Config> for DatabaseConfig {
                 postgres::config::ChannelBinding::Require => PgChannelBinding::Require,
                 _ => panic!("unhandled variant"),
             },
+            pool: PoolConfig::default(),
         }
     }
 }
@@ -191,5 +194,38 @@ impl From<DatabaseConfig> for postgres::Config {
         });
 
         new_cfg
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(default)]
+pub struct PoolConfig {
+    pub max_size: usize,
+    #[serde(with = "humantime_serde")]
+    pub create_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub wait_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub recycle_timeout: Duration,
+}
+
+impl Default for PoolConfig {
+    fn default() -> Self {
+        PoolConfig {
+            max_size: num_cpus::get() * 4,
+            create_timeout: Duration::from_secs(5),
+            wait_timeout: Duration::from_secs(5),
+            recycle_timeout: Duration::from_secs(5),
+        }
+    }
+}
+
+impl From<PoolConfig> for deadpool_postgres::Timeouts {
+    fn from(cfg: PoolConfig) -> Self {
+        deadpool_postgres::Timeouts {
+            create: Some(cfg.create_timeout),
+            wait: Some(cfg.wait_timeout),
+            recycle: Some(cfg.recycle_timeout),
+        }
     }
 }
