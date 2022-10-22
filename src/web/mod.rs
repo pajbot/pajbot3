@@ -18,10 +18,8 @@ use tokio_util::sync::CancellationToken;
 use tower_http::cors::{self, CorsLayer};
 #[cfg(unix)]
 use {
+    hyperlocal::UnixServerExt, std::fs::Permissions, std::os::unix::fs::PermissionsExt,
     std::path::Path,
-    std::fs::Permissions,
-    std::os::unix::fs::PermissionsExt,
-    hyperlocal::UnixServerExt
 };
 
 #[derive(Clone, Copy)]
