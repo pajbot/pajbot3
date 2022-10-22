@@ -2,8 +2,7 @@ import {A, Route, Routes, useLocation} from '@solidjs/router';
 import type { Component } from 'solid-js';
 import {Login} from "./pages/Login";
 import {LoginAuthorized} from "./pages/LoginAuthorized";
-import {UserAuthorization} from "./models/auth";
-import {useAuth} from "./AuthProvider";
+import {useAuth, UserAuthorization} from "./AuthProvider";
 
 const App: Component = () => {
     const { auth, loading, error, logout, setAuth, returnTo } = useAuth();

@@ -1,12 +1,23 @@
-import {
-    Accessor,
-    createContext,createMemo,
-    createSignal,
-    JSX,
-    Setter,
-    useContext
-} from "solid-js";
-import {UserAuthorization} from "./models/auth";
+import {Accessor, createContext, createMemo, createSignal, JSX, Setter, useContext} from "solid-js";
+
+export interface UserDetails {
+    id: string,
+    login: string,
+    display_name: string,
+    type: string,
+    broadcaster_type: string,
+    description: string,
+    profile_image_url: string,
+    offline_image_url: string,
+    view_count: number,
+    created_at: Date
+}
+
+export interface UserAuthorization {
+    access_token: string;
+    valid_until: Date;
+    user_details: UserDetails;
+}
 
 export interface AuthContextData {
     auth: Accessor<UserAuthorization | null>,

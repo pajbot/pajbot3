@@ -36,7 +36,7 @@ async fn main() {
     tracing::debug!("Successfully loaded config: {:#?}", config);
 
     // db init
-    let data_storage = Box::leak(Box::new(db::connect_to_postgresql(&config).await));
+    let data_storage = Box::leak(Box::new(db::connect_to_postgresql(config).await));
     let migrations_result = data_storage.run_migrations().await;
     match migrations_result {
         Ok(()) => {
@@ -78,9 +78,9 @@ async fn main() {
                 // two cases:
                 // - webserver ends on its own WITHOUT us sending the
                 //   shutdown signal first (fatal error probably)
-                //   ctrl_c_event.is_terminated() will be FALSE
+                //   os_shutdown_signal.is_terminated() will be FALSE
                 // - webserver ends after Ctrl-C shutdown request
-                //   ctrl_c_event.is_terminated() will be TRUE
+                //   os_shutdown_signal.is_terminated() will be TRUE
                 match webserver_result {
                     Ok(Ok(())) => {
                         if !shutdown_signal.is_cancelled() {
