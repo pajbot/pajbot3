@@ -32,6 +32,7 @@ export interface AuthContextData {
   loading: Accessor<boolean>;
   error: Accessor<any | null>;
   setAuth: (auth: UserAuthorization | null) => void;
+  setError: (error: any) => void;
   login: (code: string) => void;
   logout: () => void;
   returnTo: Accessor<string>;
@@ -99,7 +100,8 @@ export function AuthProvider(props: AuthContextProps) {
 
   let setAuth = (auth: UserAuthorization | null) => {
     if (auth != null) {
-      let timeDiff = auth.valid_until.getTime() - Date.now();
+      // subtract an additional 2 minutes as safety margin
+      let timeDiff = auth.valid_until.getTime() - Date.now() - 2 * 60 * 1000;
       let expired = timeDiff <= 0;
 
       if (expired) {
@@ -111,6 +113,10 @@ export function AuthProvider(props: AuthContextProps) {
     } else {
       overwriteInternalState({ state: "LoggedOut" });
     }
+  };
+
+  let setError = (error: any) => {
+    overwriteInternalState({ state: "Errored", error });
   };
 
   let startRefresh = (auth: UserAuthorization) => {
@@ -191,6 +197,7 @@ export function AuthProvider(props: AuthContextProps) {
     login,
     logout,
     setAuth,
+    setError,
     returnTo,
     setReturnTo,
   };
@@ -238,8 +245,6 @@ async function refreshUserAuthorization(
   abortSignal?: AbortSignal
 ): Promise<UserAuthorization> {
   console.log("refresh auth! access token: " + accessToken);
-
-  await new Promise((resolve) => setTimeout(resolve, 20000));
 
   const response = await fetch(`/api/v1/auth/refresh`, {
     method: "POST",

@@ -3,7 +3,7 @@ use axum::Json;
 use reqwest::StatusCode;
 use serde::Serialize;
 use std::borrow::Cow;
-use std::fmt::Display;
+use std::panic::Location;
 
 /// Utility for the purpose of returning errors from the API in a consistent fashion.
 #[derive(Debug, Serialize)]
@@ -49,19 +49,23 @@ impl ApiError {
         )
     }
 
-    pub fn internal_server_error() -> ApiError {
-        ApiError::new_basic(StatusCode::INTERNAL_SERVER_ERROR)
-    }
-
-    pub fn map_internal<E: Display>(context: &'static str) -> impl Fn(E) -> ApiError {
-        move |e| {
-            tracing::error!("{}: {}", context, e);
-            ApiError::internal_server_error()
-        }
-    }
-
     pub fn method_not_allowed() -> ApiError {
         ApiError::new_basic(StatusCode::METHOD_NOT_ALLOWED)
+    }
+}
+
+impl<E> From<E> for ApiError
+where
+    E: Into<anyhow::Error>,
+{
+    #[track_caller]
+    fn from(e: E) -> ApiError {
+        let caller = Location::caller();
+        // The error is turned into a anyhow::Error to get the opportunity to print a backtrace
+        // with RUST_BACKTRACE=1 (see also documentation on anyhow for more details)
+        let anyhow_error: anyhow::Error = e.into();
+        tracing::error!("({}) {:?}", caller, anyhow_error);
+        ApiError::new_basic(StatusCode::INTERNAL_SERVER_ERROR)
     }
 }
 

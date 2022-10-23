@@ -1,18 +1,7 @@
-use crate::api::twitch::auth::UserAccessToken;
+use crate::api::twitch::auth::{TwitchUserAccessToken, TwitchUserAccessTokenResponse};
 use crate::api::twitch::ApiClientCredentials;
-use chrono::{Duration, Utc};
 use reqwest::StatusCode;
-use serde::Deserialize;
-use std::collections::HashSet;
 use thiserror::Error;
-
-#[derive(Deserialize)]
-struct GetTokenResponse {
-    access_token: String,
-    refresh_token: String,
-    expires_in: i64,
-    scope: Option<Vec<String>>,
-}
 
 #[derive(Error, Debug)]
 pub enum GetTokenError {
@@ -25,7 +14,7 @@ pub enum GetTokenError {
 pub async fn get_token(
     client_credentials: &ApiClientCredentials,
     code: &str,
-) -> Result<UserAccessToken, GetTokenError> {
+) -> Result<TwitchUserAccessToken, GetTokenError> {
     let resp = crate::HTTP_CLIENT
         .post("https://id.twitch.tv/oauth2/token")
         .query(&[
@@ -45,16 +34,8 @@ pub async fn get_token(
                 GetTokenError::Other(e)
             }
         })?
-        .json::<GetTokenResponse>()
+        .json::<TwitchUserAccessTokenResponse>()
         .await?;
 
-    Ok(UserAccessToken {
-        access_token: resp.access_token,
-        refresh_token: resp.refresh_token,
-        valid_until: Utc::now() + Duration::seconds(resp.expires_in),
-        scope: match resp.scope {
-            None => HashSet::new(),
-            Some(scope) => HashSet::from_iter(scope.into_iter()),
-        },
-    })
+    Ok(TwitchUserAccessToken::from(resp))
 }

@@ -6,13 +6,14 @@ use crate::web::WebAppData;
 use axum::extract::rejection::QueryRejection;
 use axum::extract::Query;
 use axum::{Extension, Json};
+use chrono::{Duration, Utc};
 use hyper::StatusCode;
 use rand::distributions::Standard;
 use rand::Rng;
 use serde::Deserialize;
 use std::fmt::Write;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct CreateAuthTokenQueryOptions {
     code: String,
 }
@@ -26,7 +27,7 @@ pub async fn create_token(
         .map_err(|_| ApiError::bad_query_parameters())?
         .code;
 
-    let user_access_token =
+    let twitch_user_access_token =
         match api::twitch::auth::get_token(&app_data.config.twitch_api, code).await {
             Ok(auth) => auth,
             Err(GetTokenError::InvalidAuthorizationCode(_)) => {
@@ -37,17 +38,15 @@ pub async fn create_token(
                 ))
             }
             Err(GetTokenError::Other(e)) => {
-                tracing::error!("create_token:get_token error: {}", e);
-                return Err(ApiError::internal_server_error());
+                return Err(e.into());
             }
         };
 
     let user_details = api::twitch::user::get_user_for_authorization(
         &app_data.config.twitch_api,
-        &user_access_token.access_token,
+        &twitch_user_access_token.access_token,
     )
-    .await
-    .map_err(ApiError::map_internal("get user details in create_token"))?;
+    .await?;
 
     // 512 bit random hex string
     // thread_rng() is cryptographically safe
@@ -60,15 +59,8 @@ pub async fn create_token(
         },
     );
 
-    let mut db_conn = app_data
-        .db
-        .get()
-        .await
-        .map_err(ApiError::map_internal("get db conn in create_token"))?;
-    let tx = db_conn
-        .transaction()
-        .await
-        .map_err(ApiError::map_internal("start tx in create_token"))?;
+    let mut db_conn = app_data.db.get().await?;
+    let tx = db_conn.transaction().await?;
 
     tx.execute(
         r#"INSERT INTO "user"(id, login, display_name) VALUES ($1, $2, $3)
@@ -79,26 +71,31 @@ pub async fn create_token(
             &user_details.display_name,
         ],
     )
-    .await
-    .map_err(ApiError::map_internal("insert user in create_token"))?;
+    .await?;
+
+    // tokens are supposed to be valid for a maximum of one hour.
+    // See https://dev.twitch.tv/docs/authentication/validate-tokens#who-must-validate-tokens
+    // We simply force a refresh after an hour
+    let mut valid_until = Utc::now() + Duration::hours(1);
+    if twitch_user_access_token.valid_until < valid_until {
+        valid_until = twitch_user_access_token.valid_until;
+    }
 
     tx.execute(r#"
     INSERT INTO user_authorization(access_token, twitch_access_token, twitch_refresh_token, valid_until, user_id)
     VALUES ($1, $2, $3, $4, $5)"#, &[
         &access_token,
-        &user_access_token.access_token,
-        &user_access_token.refresh_token,
-        &user_access_token.valid_until,
+        &twitch_user_access_token.access_token,
+        &twitch_user_access_token.refresh_token,
+        &valid_until,
         &user_details.id
-    ]).await.map_err(ApiError::map_internal("insert user authorization in create_token"))?;
+    ]).await?;
 
-    tx.commit()
-        .await
-        .map_err(ApiError::map_internal("commit tx in create_token"))?;
+    tx.commit().await?;
 
     Ok(Json(UserAuthorizationResponse {
         access_token,
-        valid_until: user_access_token.valid_until,
+        valid_until,
         user_details,
     }))
 }

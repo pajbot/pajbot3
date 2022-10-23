@@ -6,6 +6,22 @@ CREATE TABLE "user"
     login_last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+CREATE FUNCTION trigger_user_update_login_last_updated()
+    RETURNS trigger AS
+$$
+BEGIN
+    NEW.login_last_updated = now();
+    RETURN NEW;
+END
+$$
+    LANGUAGE plpgsql;
+
+CREATE TRIGGER user_login_update
+    AFTER UPDATE OF login
+    ON "user"
+    FOR EACH ROW
+EXECUTE PROCEDURE trigger_user_update_login_last_updated();
+
 CREATE TYPE authorization_purpose AS ENUM ('bot_v1', 'broadcaster_v1');
 
 CREATE TABLE special_twitch_authorization

@@ -1,41 +1,64 @@
-import { createSignal, Match, onMount, Show, Switch } from "solid-js";
-import { A, Navigate, useLocation } from "@solidjs/router";
+import {
+  createEffect,
+  createSignal,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
+import { A, Navigate, useNavigate, useSearchParams } from "@solidjs/router";
 import { CsrfState } from "./Login";
 import { fetchUserAuthorization, useAuth } from "../AuthProvider";
 
 export function LoginAuthorized() {
-  let [errorMessage, setErrorMessage] = createSignal<string | null>(null);
-  const { auth, loading, error, login, returnTo, setReturnTo } = useAuth();
+  const { loading, error, login, setError, returnTo, setReturnTo } = useAuth();
 
   onMount(() => {
+    let [searchParams, setSearchParams] = useSearchParams();
+    let otherCsrfToken = searchParams.state;
+    let errorCode = searchParams.error;
+    let errorDescription = searchParams.error_description;
+    let code = searchParams.code;
+    // Clear the parameters out of the location bar. replace: true will also prevent these details from staying
+    // around in the browser's history - the history entry will be overwritten/replaced
+    setSearchParams(
+      {
+        state: null,
+        error: null,
+        error_description: null,
+        code: null,
+        scope: null,
+      },
+      { replace: true }
+    );
+
     let csrfStateRaw = window.sessionStorage.getItem("csrfState");
-    // window.sessionStorage.removeItem("csrfState");
+    window.sessionStorage.removeItem("csrfState");
     if (csrfStateRaw == null) {
-      setErrorMessage("No CSRF token found in browser storage");
+      setError("No CSRF token found in browser storage");
       return;
     }
     let csrfState: CsrfState = JSON.parse(csrfStateRaw);
     console.debug("loaded csrf state as ", csrfState);
     setReturnTo(csrfState.returnTo);
-    /*
-        if (Date.now() > csrfState.validUntil) {
-            setErrorMessage("Login attempt expired. (You took too long to complete the login)");
-            return;
-        }
-*/
-    let query = new URLSearchParams(useLocation().search);
-    /*        let otherCsrfToken = query.get("state");
-        if (otherCsrfToken == null) {
-            setErrorMessage("State parameter not present on request");
-            return;
-        }
 
-        if (otherCsrfToken !== csrfState.token) {
-            setErrorMessage("CSRF tokens do not match");
-            return;
-        }
-*/
-    let errorCode = query.get("error");
+    if (Date.now() > csrfState.validUntil) {
+      setError(
+        "Login attempt expired. (You took too long to complete the login)"
+      );
+      return;
+    }
+
+    if (otherCsrfToken == null) {
+      setError("State parameter not present on request");
+      return;
+    }
+
+    if (otherCsrfToken !== csrfState.token) {
+      setError("CSRF tokens do not match");
+      return;
+    }
+
     if (errorCode === "access_denied") {
       // User pressed cancel, don't show them an error, just return them to where they came from.
       return;
@@ -43,47 +66,31 @@ export function LoginAuthorized() {
     if (errorCode != null) {
       // Some other error
       let errorMessage = `Authorization completed with error code ${errorCode}`;
-      let errorDescription = query.get("error_description");
       if (errorDescription != null) {
         errorMessage += ` (Description: ${errorDescription}`;
       }
 
-      setErrorMessage(errorMessage);
+      setError(errorMessage);
       return;
     }
 
-    let code = query.get("code");
     if (code == null) {
-      setErrorMessage("Missing code parameter in query string");
+      setError("Missing code parameter in query string");
       return;
     }
 
     login(code);
   });
 
-  let combinedError = () => {
+  const navigate = useNavigate();
+  createEffect(() => {
     if (error() != null) {
-      return error();
-    } else {
-      return errorMessage();
+      navigate("/login/error", { replace: true });
+    } else if (!loading()) {
+      // success
+      navigate(returnTo(), { replace: true });
     }
-  };
+  });
 
-  return (
-    <Switch>
-      <Match when={loading()}>Auth loading...</Match>
-      <Match when={combinedError() != null}>
-        Login Error :(
-        <br />
-        Message: {combinedError()}
-        <br />
-        Feel free to return to where you came from though:{" "}
-        <A href={returnTo()}>Click here</A>
-      </Match>
-      <Match when={true /* else branch */}>
-        Would navigate to <code>{returnTo()}</code> (<A href={returnTo()}>Go</A>
-        ){/*<Navigate href={returnTo()}/>*/}
-      </Match>
-    </Switch>
-  );
+  return <Show when={loading()}>Please wait...</Show>;
 }

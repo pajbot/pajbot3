@@ -1,3 +1,5 @@
+pub mod models;
+
 use crate::Config;
 use deadpool_postgres::PoolConfig;
 use deadpool_postgres::RecyclingMethod;

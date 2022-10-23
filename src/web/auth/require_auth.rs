@@ -1,8 +1,11 @@
+use crate::db::models::{UserAuthorization, UserBasics};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
-use axum::middleware::Next;
-use axum::response::IntoResponse;
-use http::{Request, StatusCode};
+use async_trait::async_trait;
+use axum::extract::{FromRequest, RequestParts};
+use axum::Extension;
+use chrono::Utc;
+use http::StatusCode;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -10,54 +13,106 @@ lazy_static! {
     static ref RE_AUTHORIZATION_HEADER: Regex = Regex::new("^Bearer ([0-9a-f]{128})$").unwrap();
 }
 
-pub async fn require_authorization<B>(
-    mut req: Request<B>,
-    next: Next<B>,
-    app_data: WebAppData,
-) -> impl IntoResponse {
-    let auth_header = req
-        .headers()
-        .get(http::header::AUTHORIZATION)
-        .map(|header| header.to_str());
-    let auth_header = match auth_header {
-        Some(Ok(auth_header)) => auth_header,
-        Some(Err(_)) => return Err(ApiError::new_detailed(StatusCode::BAD_REQUEST, "header_value_not_utf8", "Header value for Header `Authorization` was not valid UTF-8")),
-        None => return Err(ApiError::new_detailed(StatusCode::BAD_REQUEST, "missing_header", "Missing header `Authorization`")),
-    };
+pub struct PosssiblyExpiredUserAuthorization(pub UserAuthorization);
 
-    let access_token = RE_AUTHORIZATION_HEADER
-        .captures(&auth_header)
-        .ok_or_else(|| ApiError::new_detailed(StatusCode::BAD_REQUEST, "malformed_header", "Malformed `Authorization` header"))?
-        .get(1)
-        .unwrap()
-        .as_str();
+#[async_trait]
+impl<B: Send> FromRequest<B> for PosssiblyExpiredUserAuthorization {
+    type Rejection = ApiError;
 
-    // data storage query ensures token is not totally expired
-    let mut authorization = app_data
-        .data_storage
-        .get_user_authorization(access_token)
-        .await
-        .map_err(ApiError::map_internal("require_authorization query for authorization"))?
-        .ok_or_else(|| ApiError::new_detailed(StatusCode::UNAUTHORIZED, "unauthorized", "Unauthorized (access token expired or invalid)"))?;
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let auth_header = req
+            .headers()
+            .get(http::header::AUTHORIZATION)
+            .map(|header| header.to_str());
+        let auth_header = match auth_header {
+            Some(Ok(auth_header)) => auth_header,
+            Some(Err(_)) => {
+                return Err(ApiError::new_detailed(
+                    StatusCode::BAD_REQUEST,
+                    "header_value_not_utf8",
+                    "Header value for Header `Authorization` was not valid UTF-8",
+                ))
+            }
+            None => {
+                return Err(ApiError::new_detailed(
+                    StatusCode::BAD_REQUEST,
+                    "missing_header",
+                    "Missing header `Authorization`",
+                ))
+            }
+        };
 
-    // and then this ensures that the user has not revoked the connection from the Twitch side
-    let pre_validation_auth = authorization.clone();
-    authorization
-        .validate_still_valid(
-            &app_data.config.web.twitch_api_credentials,
-            app_data.config.web.recheck_twitch_auth_after,
-        )
-        .await?;
+        let access_token = RE_AUTHORIZATION_HEADER
+            .captures(&auth_header)
+            .ok_or_else(|| {
+                ApiError::new_detailed(
+                    StatusCode::BAD_REQUEST,
+                    "malformed_header",
+                    "Malformed `Authorization` header",
+                )
+            })?
+            .get(1)
+            .unwrap()
+            .as_str()
+            .to_owned();
 
-    if pre_validation_auth != authorization {
-        app_data
-            .data_storage
-            .update_user_authorization(&authorization)
-            .await
-            .map_err(ApiError::UpdateUserAuthorization)?;
+        let app_data = Extension::<WebAppData>::from_request(req).await.unwrap();
+        let row = app_data
+            .db
+            .get()
+            .await?
+            .query_opt(
+                r#"SELECT user_authorization.twitch_access_token,
+       user_authorization.twitch_refresh_token,
+       user_authorization.valid_until,
+       user_authorization.user_id,
+       "user".login,
+       "user".display_name
+FROM user_authorization
+JOIN "user" ON user_authorization.user_id = "user".id
+WHERE access_token = $1"#,
+                &[&access_token],
+            )
+            .await?
+            .ok_or_else(|| {
+                ApiError::new_detailed(
+                    StatusCode::UNAUTHORIZED,
+                    "access_token_invalid",
+                    "Unauthorized (access token invalid)",
+                )
+            })?;
+
+        let auth = PosssiblyExpiredUserAuthorization(UserAuthorization {
+            access_token,
+            twitch_access_token: row.get(0),
+            twitch_refresh_token: row.get(1),
+            valid_until: row.get(2),
+            user: UserBasics {
+                id: row.get(3),
+                login: row.get(4),
+                display_name: row.get(5),
+            },
+        });
+
+        Ok(auth)
     }
+}
 
-    req.extensions_mut().insert(authorization);
+#[async_trait]
+impl<B: Send> FromRequest<B> for UserAuthorization {
+    type Rejection = ApiError;
 
-    Ok(next.run(req).await)
+    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let auth = PosssiblyExpiredUserAuthorization::from_request(req).await?;
+
+        if Utc::now() > auth.0.valid_until {
+            return Err(ApiError::new_detailed(
+                StatusCode::UNAUTHORIZED,
+                "access_token_expired",
+                "Unauthorized (access token has expired)",
+            ));
+        }
+
+        Ok(auth.0)
+    }
 }

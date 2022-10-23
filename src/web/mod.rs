@@ -61,6 +61,10 @@ pub async fn run(
             "/auth/create",
             post(auth::create::create_token).fallback(method_fallback()),
         )
+        .route(
+            "/auth/refresh",
+            post(auth::refresh::refresh_token).fallback(method_fallback()),
+        )
         .layer(cors);
 
     let app = Router::new()
