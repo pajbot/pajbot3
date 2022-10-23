@@ -2,6 +2,7 @@ on: [push, pull_request]
 
 name: Check Rust code
 
+# If changing any of the commands, make the same changes to pre-push-check.sh!
 jobs:
   build-and-test:
     name: Build and test Rust code (${{ matrix.os }})

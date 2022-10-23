@@ -43,7 +43,7 @@ impl<B: Send> FromRequest<B> for PosssiblyExpiredUserAuthorization {
         };
 
         let access_token = RE_AUTHORIZATION_HEADER
-            .captures(&auth_header)
+            .captures(auth_header)
             .ok_or_else(|| {
                 ApiError::new_detailed(
                     StatusCode::BAD_REQUEST,
