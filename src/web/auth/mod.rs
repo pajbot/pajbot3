@@ -1,6 +1,7 @@
 pub mod create;
 pub mod refresh;
 pub mod require_auth;
+pub mod revoke;
 
 use crate::api::twitch::user::UserDetails;
 use chrono::{DateTime, Utc};

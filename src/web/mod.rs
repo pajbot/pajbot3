@@ -65,6 +65,10 @@ pub async fn run(
             "/auth/refresh",
             post(auth::refresh::refresh_token).fallback(method_fallback()),
         )
+        .route(
+            "/auth/revoke",
+            post(auth::revoke::revoke_token).fallback(method_fallback()),
+        )
         .layer(cors);
 
     let app = Router::new()

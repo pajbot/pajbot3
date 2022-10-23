@@ -10,8 +10,7 @@ export function LoginError() {
       <br />
       Message: {error()}
       <br />
-      Feel free to return to where you came from though:{" "}
-      <A href={returnTo()}>Click here</A>
+      Feel free to return to where you came from though: <A href={returnTo()}>Click here</A>
     </>
   );
 }

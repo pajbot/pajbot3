@@ -1,8 +1,10 @@
 mod get_token;
 mod refresh;
+mod revoke;
 
 pub use get_token::{get_token, GetTokenError};
 pub use refresh::{refresh_token, RefreshTokenError};
+pub use revoke::{revoke_token, RevokeTokenError};
 
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};

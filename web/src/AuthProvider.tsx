@@ -1,12 +1,4 @@
-import {
-  Accessor,
-  createContext,
-  createMemo,
-  createSignal,
-  JSX,
-  Setter,
-  useContext,
-} from "solid-js";
+import { Accessor, createContext, createMemo, createSignal, JSX, Setter, useContext } from "solid-js";
 
 export interface UserDetails {
   id: string;
@@ -58,12 +50,7 @@ type LoadingRefresh = {
 };
 type LoadingNew = { state: "LoadingNew"; abortController: AbortController };
 type Errored = { state: "Errored"; error: any };
-type InternalAuthState =
-  | LoggedOut
-  | LoggedIn
-  | LoadingRefresh
-  | LoadingNew
-  | Errored;
+type InternalAuthState = LoggedOut | LoggedIn | LoadingRefresh | LoadingNew | Errored;
 
 interface ExternalAuthState {
   auth: UserAuthorization | null;
@@ -82,10 +69,7 @@ export function AuthProvider(props: AuthContextProps) {
       if (previousState.state === "LoggedIn") {
         clearTimeout(previousState.activeTimeout);
       }
-      if (
-        previousState.state === "LoadingNew" ||
-        previousState.state === "LoadingRefresh"
-      ) {
+      if (previousState.state === "LoadingNew" || previousState.state === "LoadingRefresh") {
         previousState.abortController.abort();
       }
       if ("auth" in newState) {
@@ -123,10 +107,7 @@ export function AuthProvider(props: AuthContextProps) {
     let abortController = new AbortController();
     (async () => {
       try {
-        let newAuth = await refreshUserAuthorization(
-          auth.access_token,
-          abortController.signal
-        );
+        let newAuth = await refreshUserAuthorization(auth.access_token, abortController.signal);
         if (!abortController.signal.aborted) {
           setAuth(newAuth);
         }
@@ -144,19 +125,13 @@ export function AuthProvider(props: AuthContextProps) {
     let abortController = new AbortController();
     (async () => {
       try {
-        let newAuth = await fetchUserAuthorization(
-          code,
-          abortController.signal
-        );
+        let newAuth = await fetchUserAuthorization(code, abortController.signal);
         if (!abortController.signal.aborted) {
           setAuth(newAuth);
         }
       } catch (e) {
         if (!abortController.signal.aborted) {
-          console.error(
-            "Failed to log in (fetch new authorization) - Cause: ",
-            e
-          );
+          console.error("Failed to log in (fetch new authorization) - Cause: ", e);
           overwriteInternalState({ state: "Errored", error: e });
         }
       }
@@ -165,7 +140,18 @@ export function AuthProvider(props: AuthContextProps) {
   };
 
   let logout = () => {
-    setAuth(null);
+    let tokenToRevoke = auth()?.access_token;
+    if (tokenToRevoke != null) {
+      setAuth(null);
+      (async () => {
+        try {
+          await revokeUserAuthorization(tokenToRevoke);
+          console.log("Auth token successfully revoked, logout complete");
+        } catch (e) {
+          console.error("Failed to revoke user authorization", e);
+        }
+      })();
+    }
   };
 
   // init from storage
@@ -202,11 +188,7 @@ export function AuthProvider(props: AuthContextProps) {
     setReturnTo,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {props.children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{props.children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextData {
@@ -217,22 +199,16 @@ export function useAuth(): AuthContextData {
   return context;
 }
 
-export async function fetchUserAuthorization(
-  code: string,
-  abortSignal?: AbortSignal
-): Promise<UserAuthorization> {
+export async function fetchUserAuthorization(code: string, abortSignal?: AbortSignal): Promise<UserAuthorization> {
   console.log("fetch auth! code: " + code);
 
-  const response = await fetch(
-    `/api/v1/auth/create?code=${encodeURIComponent(code)}`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-      },
-      signal: abortSignal,
-    }
-  );
+  const response = await fetch(`/api/v1/auth/create?code=${encodeURIComponent(code)}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+    signal: abortSignal,
+  });
 
   if (!response.ok) {
     throw Error(response.statusText);
@@ -240,10 +216,7 @@ export async function fetchUserAuthorization(
   return deserializeAuth(await response.text());
 }
 
-async function refreshUserAuthorization(
-  accessToken: string,
-  abortSignal?: AbortSignal
-): Promise<UserAuthorization> {
+async function refreshUserAuthorization(accessToken: string, abortSignal?: AbortSignal): Promise<UserAuthorization> {
   console.log("refresh auth! access token: " + accessToken);
 
   const response = await fetch(`/api/v1/auth/refresh`, {
@@ -259,6 +232,18 @@ async function refreshUserAuthorization(
     throw Error(response.statusText);
   }
   return deserializeAuth(await response.text());
+}
+
+async function revokeUserAuthorization(accessToken: string): Promise<void> {
+  const response = await fetch(`/api/v1/auth/revoke`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    throw Error(response.statusText);
+  }
 }
 
 function serializeAuth(auth: UserAuthorization | null): string {

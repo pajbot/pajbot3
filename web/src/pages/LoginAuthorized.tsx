@@ -1,11 +1,4 @@
-import {
-  createEffect,
-  createSignal,
-  Match,
-  onMount,
-  Show,
-  Switch,
-} from "solid-js";
+import { createEffect, createSignal, Match, onMount, Show, Switch } from "solid-js";
 import { A, Navigate, useNavigate, useSearchParams } from "@solidjs/router";
 import { CsrfState } from "./Login";
 import { fetchUserAuthorization, useAuth } from "../AuthProvider";
@@ -43,9 +36,7 @@ export function LoginAuthorized() {
     setReturnTo(csrfState.returnTo);
 
     if (Date.now() > csrfState.validUntil) {
-      setError(
-        "Login attempt expired. (You took too long to complete the login)"
-      );
+      setError("Login attempt expired. (You took too long to complete the login)");
       return;
     }
 
