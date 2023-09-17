@@ -5,7 +5,7 @@ use crate::config::web::ListenAddr;
 use crate::db::DataStorage;
 use crate::web::error::ApiError;
 use crate::Config;
-use axum::handler::Handler;
+use axum::handler::HandlerWithoutStateExt;
 use axum::http::{header, Method};
 use axum::routing::get;
 use axum::routing::post;
@@ -55,7 +55,7 @@ pub async fn run(
             header::CONTENT_TYPE,
         ])
         .allow_origin(cors::Any); // TODO probably not any
-    let method_fallback = || (|| async { ApiError::method_not_allowed() }).into_service();
+    let method_fallback = || (|| async { ApiError::method_not_allowed() });
     let api = Router::new()
         .route(
             "/auth/create",

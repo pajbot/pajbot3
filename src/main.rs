@@ -6,9 +6,11 @@ use futures::FutureExt;
 use lazy_static::lazy_static;
 use std::process;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 
 pub mod api;
 pub mod args;
+pub mod bot;
 pub mod config;
 pub mod db;
 pub mod shutdown;
@@ -50,6 +52,14 @@ async fn main() {
 
     let shutdown_signal = CancellationToken::new();
 
+    match bot::run(config, shutdown_signal.clone()).await {
+        Ok(bot) => bot,
+        Err(e) => {
+            tracing::error!("error running bot: {e:?}");
+            std::process::exit(1);
+        }
+    };
+
     let webserver = match web::run(config, data_storage, shutdown_signal.clone()).await {
         Ok(webserver) => webserver,
         Err(bind_error) => {
@@ -74,6 +84,20 @@ async fn main() {
                 tracing::debug!("Received shutdown signal");
                 shutdown_signal.cancel();
             },
+            /*
+            bot_result = (&mut bot_join_handle), if !bot_join_handle.is_terminated() => {
+                match bot_result {
+                    Ok(()) => {
+                        info!("bot exited successfully");
+                    }
+                    Err(bot_error) => {
+                        tracing::error!("Bot encountered fatal error (shutting down other parts of application gracefully): {}", bot_error);
+                        shutdown_signal.cancel();
+                        exit_code = 1;
+                    }
+                }
+            }
+            */
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
                 // two cases:
                 // - webserver ends on its own WITHOUT us sending the

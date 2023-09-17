@@ -27,7 +27,7 @@ pub async fn connect_to_postgresql(config: &Config) -> DataStorage {
     };
 
     let mut root_certificates = RootCertStore::empty();
-    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|trust_anchor| {
+    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.iter().map(|trust_anchor| {
         OwnedTrustAnchor::from_subject_spki_name_constraints(
             trust_anchor.subject,
             trust_anchor.spki,

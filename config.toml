@@ -1,3 +1,17 @@
+[bot.pajbot]
+client_id = "abcd"
+client_secret = "abcd"
+redirect_uri = "abcd"
+db_schema = "pajbot1_dev"
+target_id = "11148817"
+
+[bot.snusbot]
+client_id = "abcd"
+client_secret = "abcd"
+redirect_uri = "abcd"
+db_schema = "pajbot1_dev"
+target_id = "11148817"
+
 [twitch_api]
 client_id = "abcd"
 client_secret = "abcd"
@@ -7,7 +21,7 @@ redirect_uri = "abcd"
 # most options are additionally documented here: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS
 [database]
 # Username to log into the database server as. Required
-user = "db_username"
+user = "pajlada"
 
 # Optional password for login, not needed e.g. if you use unix sockets with peer authentication
 #password = "a_password"

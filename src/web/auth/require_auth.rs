@@ -2,7 +2,8 @@ use crate::db::models::{UserAuthorization, UserBasics};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
 use async_trait::async_trait;
-use axum::extract::{FromRequest, RequestParts};
+use axum::extract::FromRequest;
+use axum::http::Request;
 use axum::Extension;
 use chrono::Utc;
 use http::StatusCode;
@@ -16,10 +17,10 @@ lazy_static! {
 pub struct PosssiblyExpiredUserAuthorization(pub UserAuthorization);
 
 #[async_trait]
-impl<B: Send> FromRequest<B> for PosssiblyExpiredUserAuthorization {
+impl<S: Send + Sync, B: Send + 'static> FromRequest<S, B> for PosssiblyExpiredUserAuthorization {
     type Rejection = ApiError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
         let auth_header = req
             .headers()
             .get(http::header::AUTHORIZATION)
@@ -56,7 +57,9 @@ impl<B: Send> FromRequest<B> for PosssiblyExpiredUserAuthorization {
             .as_str()
             .to_owned();
 
-        let app_data = Extension::<WebAppData>::from_request(req).await.unwrap();
+        let app_data = Extension::<WebAppData>::from_request(req, state)
+            .await
+            .unwrap();
         let row = app_data
             .db
             .get()
@@ -99,11 +102,11 @@ WHERE access_token = $1"#,
 }
 
 #[async_trait]
-impl<B: Send> FromRequest<B> for UserAuthorization {
+impl<S: Send + Sync, B: Send + 'static> FromRequest<S, B> for UserAuthorization {
     type Rejection = ApiError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let auth = PosssiblyExpiredUserAuthorization::from_request(req).await?;
+    async fn from_request(req: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+        let auth = PosssiblyExpiredUserAuthorization::from_request(req, state).await?;
 
         if Utc::now() > auth.0.valid_until {
             return Err(ApiError::new_detailed(
