@@ -22,7 +22,7 @@ export function LoginAuthorized() {
         code: null,
         scope: null,
       },
-      { replace: true }
+      { replace: true },
     );
 
     let csrfStateRaw = window.sessionStorage.getItem("csrfState");
