@@ -1,4 +1,5 @@
 use crate::api::twitch::ApiClientCredentials;
+use crate::db::models::UserBasics;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -10,9 +11,8 @@ pub struct HelixGetUserResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct UserDetails {
-    pub id: String,
-    pub login: String,
-    pub display_name: String,
+    #[serde(flatten)]
+    pub basics: UserBasics,
     #[serde(rename = "type")]
     pub user_type: String,
     pub broadcaster_type: String,

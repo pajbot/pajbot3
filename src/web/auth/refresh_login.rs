@@ -1,7 +1,7 @@
 use crate::api;
 use crate::api::twitch::auth::RefreshTokenError;
 use crate::web::auth::require_auth::PosssiblyExpiredUserAuthorization;
-use crate::web::auth::UserAuthorizationResponse;
+use crate::web::auth::{upsert_user, UserAuthorizationResponse};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
 use axum::{Extension, Json};
@@ -37,16 +37,7 @@ pub async fn refresh_token(
     let mut db_conn = app_data.db.get().await?;
     let tx = db_conn.transaction().await?;
 
-    tx.execute(
-        r#"INSERT INTO "user"(id, login, display_name) VALUES ($1, $2, $3)
-        ON CONFLICT (id) DO UPDATE SET login = excluded.login, display_name = excluded.display_name"#,
-        &[
-            &user_details.id,
-            &user_details.login,
-            &user_details.display_name,
-        ],
-    )
-        .await?;
+    upsert_user(&user_details.basics, &tx).await?;
 
     // tokens are supposed to be valid for a maximum of one hour.
     // See https://dev.twitch.tv/docs/authentication/validate-tokens#who-must-validate-tokens
@@ -68,7 +59,7 @@ pub async fn refresh_token(
             &new_twitch_auth.access_token,
             &new_twitch_auth.refresh_token,
             &valid_until,
-            &user_details.id,
+            &user_details.basics.id,
             &auth.0.access_token,
         ],
     )

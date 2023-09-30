@@ -46,6 +46,10 @@ const App: Component = () => {
       auth-loading: {String(loading())}
       <br />
       auth-error: {String(error())}
+      <br />
+      <h1 class="text-3xl font-bold underline">
+        Hello world!
+      </h1>
       <hr />
       <Routes>
         <Route path="/login" component={Login} />

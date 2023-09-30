@@ -22,7 +22,7 @@ CREATE TRIGGER user_login_update
     FOR EACH ROW
 EXECUTE PROCEDURE trigger_user_update_login_last_updated();
 
-CREATE TYPE authorization_purpose AS ENUM ('bot_v1', 'broadcaster_v1');
+CREATE TYPE authorization_purpose AS ENUM ('bot', 'broadcaster');
 
 CREATE TABLE special_twitch_authorization
 (
