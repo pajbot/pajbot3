@@ -60,7 +60,7 @@ mod migrations {
 }
 
 impl DataStorage {
-    pub async fn run_migrations(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run_migrations(&self) -> anyhow::Result<()> {
         migrations::migrations::runner()
             .run_async(self.db.get().await?.as_mut().deref_mut())
             .await?;

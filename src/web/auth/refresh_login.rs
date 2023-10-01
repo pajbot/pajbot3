@@ -1,6 +1,6 @@
 use crate::api;
 use crate::api::twitch::auth::RefreshTokenError;
-use crate::web::auth::require_auth::PosssiblyExpiredUserAuthorization;
+use crate::web::auth::require_auth::PossiblyExpiredUserAuthorization;
 use crate::web::auth::{upsert_user, UserAuthorizationResponse};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
@@ -11,7 +11,7 @@ use http::StatusCode;
 // POST /api/v1/auth/extend
 pub async fn refresh_token(
     Extension(app_data): Extension<WebAppData>,
-    auth: PosssiblyExpiredUserAuthorization,
+    auth: PossiblyExpiredUserAuthorization,
 ) -> Result<Json<UserAuthorizationResponse>, ApiError> {
     let new_twitch_auth =
         api::twitch::auth::refresh_token(&app_data.config.twitch_api, &auth.0.twitch_refresh_token)

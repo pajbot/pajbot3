@@ -45,7 +45,7 @@ pub async fn create_special_twitch_auth(
     let query = query_options.map_err(|_| ApiError::bad_query_parameters())?;
 
     let purpose = AuthorizationPurpose::from_str(&query.purpose)
-        .ok_or_else(|| ApiError::bad_query_parameters())?;
+        .ok_or_else(ApiError::bad_query_parameters)?;
 
     let (twitch_user_access_token, user_details) = exchange_code(&app_data, &query.code).await?;
 

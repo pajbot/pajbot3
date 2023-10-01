@@ -1,10 +1,12 @@
 use crate::args::Args;
 use crate::config::Config;
+use anyhow::anyhow;
+use anyhow::Context;
 use clap::Parser;
 use futures::future::FusedFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;
-use std::process;
+use std::process::ExitCode;
 use tokio_util::sync::CancellationToken;
 
 pub mod api;
@@ -19,50 +21,51 @@ lazy_static! {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     // install global collector configured based on RUST_LOG env var.
     tracing_subscriber::fmt::init();
 
+    // This is done to print the error from main to tracing. It's possible to directly return errors from main,
+    // but they are printed to stdout, and not the logger.
+    match main_inner().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            tracing::error!("{:#}", e);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn main_inner() -> anyhow::Result<()> {
     let args = Args::parse();
     tracing::debug!("Parsed args as {:?}", args);
 
-    let config = match Config::load(&args.config_path).await {
-        Ok(config) => Box::leak(Box::new(config)),
-        Err(e) => {
-            tracing::error!("Failed to load config: {}", e);
-            process::exit(1);
-        }
-    };
+    let config = Box::leak(Box::new(
+        Config::load(&args.config_path)
+            .await
+            .context("Failed to load config")?,
+    ));
     tracing::debug!("Successfully loaded config: {:#?}", config);
 
     // db init
     let data_storage = Box::leak(Box::new(db::connect_to_postgresql(config).await));
-    let migrations_result = data_storage.run_migrations().await;
-    match migrations_result {
-        Ok(()) => {
-            tracing::info!("Successfully ran database migrations");
-        }
-        Err(e) => {
-            tracing::error!("Failed to run database migrations: {}", e);
-            std::process::exit(1);
-        }
-    }
+    data_storage
+        .run_migrations()
+        .await
+        .context("Failed to run database migrations")?;
+    tracing::info!("Successfully ran database migrations");
 
     let shutdown_signal = CancellationToken::new();
 
-    let webserver = match web::run(config, data_storage, shutdown_signal.clone()).await {
-        Ok(webserver) => webserver,
-        Err(bind_error) => {
-            tracing::error!("{}", bind_error);
-            std::process::exit(1);
-        }
-    };
+    let webserver = web::run(config, data_storage, shutdown_signal.clone())
+        .await
+        .context("Failed to run web server")?;
     let mut webserver_join_handle = tokio::spawn(webserver).fuse();
 
     let os_shutdown_signal = shutdown::shutdown_signal().fuse();
     futures::pin_mut!(os_shutdown_signal);
 
-    let mut exit_code: i32 = 0;
+    let mut result: anyhow::Result<()> = Ok(());
     loop {
         if webserver_join_handle.is_terminated() {
             tracing::info!("Everything shut down successfully, ending");
@@ -71,7 +74,7 @@ async fn main() {
 
         tokio::select! {
             _ = &mut os_shutdown_signal, if !os_shutdown_signal.is_terminated() => {
-                tracing::debug!("Received shutdown signal");
+                tracing::debug!("Received shutdown signal from operating system, shutting down application...");
                 shutdown_signal.cancel();
             },
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
@@ -81,31 +84,29 @@ async fn main() {
                 //   os_shutdown_signal.is_terminated() will be FALSE
                 // - webserver ends after Ctrl-C shutdown request
                 //   os_shutdown_signal.is_terminated() will be TRUE
-                match webserver_result {
+                result = match webserver_result {
                     Ok(Ok(())) => {
                         if !shutdown_signal.is_cancelled() {
-                            tracing::error!("Webserver ended without error even though no shutdown was requested (shutting down other parts of application gracefully)");
                             shutdown_signal.cancel();
-                            exit_code = 1;
+                            Err(anyhow!("Webserver ended without error even though no shutdown was requested"))
                         } else {
                             // regular end after graceful shutdown request
-                            tracing::info!("Webserver has successfully shut down gracefully");
+                            tracing::debug!("Webserver has successfully shut down gracefully");
+                            Ok(())
                         }
                     },
                     Ok(Err(tower_error)) => {
-                        tracing::error!("Webserver encountered fatal error (shutting down other parts of application gracefully): {}", tower_error);
                         shutdown_signal.cancel();
-                        exit_code = 1;
+                        Err(tower_error).context("Webserver encountered fatal error")
                     },
                     Err(join_error) => {
-                        tracing::error!("Webserver tokio task ended abnormally (shutting down other parts of application gracefully): {}", join_error);
                         shutdown_signal.cancel();
-                        exit_code = 1;
+                        Err(join_error).context("Webserver tokio task ended abnormally")
                     }
                 }
             }
         }
     }
 
-    std::process::exit(exit_code);
+    result
 }

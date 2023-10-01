@@ -5,11 +5,9 @@ use crate::config::web::ListenAddr;
 use crate::db::DataStorage;
 use crate::web::error::ApiError;
 use crate::Config;
-use axum::handler::Handler;
 use axum::http::{header, Method};
 use axum::routing::get;
 use axum::routing::post;
-use axum::Extension;
 use axum::Router;
 use futures::future::BoxFuture;
 use std::net::SocketAddr;
@@ -55,7 +53,7 @@ pub async fn run(
             header::CONTENT_TYPE,
         ])
         .allow_origin(cors::Any); // TODO probably not any
-    let method_fallback = || (|| async { ApiError::method_not_allowed() }).into_service();
+    let method_fallback = || (|| async { ApiError::method_not_allowed() });
     let api = Router::new()
         .route(
             "/auth/create",
@@ -74,7 +72,7 @@ pub async fn run(
     let app = Router::new()
         .route("/", get(|| async { "Hello World!" }))
         .nest("/api/v1", api)
-        .layer(Extension(shared_state));
+        .with_state(shared_state);
 
     Ok(match &config.web.listen_address {
         ListenAddr::Tcp { address } => Box::pin(

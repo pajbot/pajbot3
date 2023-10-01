@@ -1,10 +1,13 @@
 use crate::db::models::{UserAuthorization, UserBasics};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
+use anyhow::anyhow;
 use async_trait::async_trait;
-use axum::extract::{FromRequest, RequestParts};
-use axum::Extension;
+use axum::extract::rejection::TypedHeaderRejectionReason;
+use axum::extract::{FromRequestParts, State, TypedHeader};
+use axum::headers::{authorization::Bearer, Authorization};
 use chrono::Utc;
+use http::request::Parts;
 use http::StatusCode;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -13,50 +16,67 @@ lazy_static! {
     static ref RE_AUTHORIZATION_HEADER: Regex = Regex::new("^Bearer ([0-9a-f]{128})$").unwrap();
 }
 
-pub struct PosssiblyExpiredUserAuthorization(pub UserAuthorization);
+pub struct PossiblyExpiredUserAuthorization(pub UserAuthorization);
 
 #[async_trait]
-impl<B: Send> FromRequest<B> for PosssiblyExpiredUserAuthorization {
+impl FromRequestParts<WebAppData> for PossiblyExpiredUserAuthorization {
     type Rejection = ApiError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let auth_header = req
-            .headers()
-            .get(http::header::AUTHORIZATION)
-            .map(|header| header.to_str());
-        let auth_header = match auth_header {
-            Some(Ok(auth_header)) => auth_header,
-            Some(Err(_)) => {
-                return Err(ApiError::new_detailed(
-                    StatusCode::BAD_REQUEST,
-                    "header_value_not_utf8",
-                    "Header value for Header `Authorization` was not valid UTF-8",
-                ))
-            }
-            None => {
-                return Err(ApiError::new_detailed(
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &WebAppData,
+    ) -> Result<Self, Self::Rejection> {
+        let auth_header = TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state)
+            .await
+            .map_err(|err| match err.reason() {
+                TypedHeaderRejectionReason::Missing => ApiError::new_detailed(
                     StatusCode::BAD_REQUEST,
                     "missing_header",
                     "Missing header `Authorization`",
-                ))
-            }
-        };
-
-        let access_token = RE_AUTHORIZATION_HEADER
-            .captures(auth_header)
-            .ok_or_else(|| {
-                ApiError::new_detailed(
+                ),
+                TypedHeaderRejectionReason::Error(_) => ApiError::new_detailed(
                     StatusCode::BAD_REQUEST,
                     "malformed_header",
                     "Malformed `Authorization` header",
-                )
-            })?
-            .get(1)
-            .unwrap()
-            .as_str()
-            .to_owned();
+                ),
+                _ => anyhow!("Unknown TypedHeaderRejectionReason").into(),
+            })?;
+        // let auth_header = match auth_header {
+        //     Some(Ok(auth_header)) => auth_header,
+        //     Some(Err(_)) => {
+        //         return Err(ApiError::new_detailed(
+        //             StatusCode::BAD_REQUEST,
+        //             "header_value_not_utf8",
+        //             "Header value for Header `Authorization` was not valid UTF-8",
+        //         ))
+        //     }
+        //     None => {
+        //         return Err(ApiError::new_detailed(
+        //             StatusCode::BAD_REQUEST,
+        //             "missing_header",
+        //             "Missing header `Authorization`",
+        //         ))
+        //     }
+        // };
 
-        let app_data = Extension::<WebAppData>::from_request(req).await.unwrap();
+        // let access_token = RE_AUTHORIZATION_HEADER
+        //     .captures(auth_header.token)
+        //     .ok_or_else(|| {
+        //         ApiError::new_detailed(
+        //             StatusCode::BAD_REQUEST,
+        //             "malformed_header",
+        //             "Malformed `Authorization` header",
+        //         )
+        //     })?
+        //     .get(1)
+        //     .unwrap()
+        //     .as_str()
+        //     .to_owned();
+        let access_token = auth_header.token().to_owned();
+
+        let State(app_data) = State::<WebAppData>::from_request_parts(parts, state)
+            .await
+            .unwrap();
         let row = app_data
             .db
             .get()
@@ -82,7 +102,7 @@ WHERE access_token = $1"#,
                 )
             })?;
 
-        let auth = PosssiblyExpiredUserAuthorization(UserAuthorization {
+        let auth = PossiblyExpiredUserAuthorization(UserAuthorization {
             access_token,
             twitch_access_token: row.get(0),
             twitch_refresh_token: row.get(1),
@@ -99,11 +119,14 @@ WHERE access_token = $1"#,
 }
 
 #[async_trait]
-impl<B: Send> FromRequest<B> for UserAuthorization {
+impl FromRequestParts<WebAppData> for UserAuthorization {
     type Rejection = ApiError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let auth = PosssiblyExpiredUserAuthorization::from_request(req).await?;
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &WebAppData,
+    ) -> Result<Self, Self::Rejection> {
+        let auth = PossiblyExpiredUserAuthorization::from_request_parts(parts, state).await?;
 
         if Utc::now() > auth.0.valid_until {
             return Err(ApiError::new_detailed(
