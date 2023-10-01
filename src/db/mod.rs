@@ -21,20 +21,18 @@ pub async fn connect_to_postgresql(config: &Config) -> DataStorage {
     let mgr_config = ManagerConfig {
         recycling_method: RecyclingMethod::Fast,
     };
-    let pool_config = PoolConfig {
-        max_size: config.database.pool.max_size,
-        timeouts: deadpool_postgres::Timeouts::from(config.database.pool),
-    };
+    let mut pool_config = PoolConfig::new(config.database.pool.max_size);
+    pool_config.timeouts = deadpool_postgres::Timeouts::from(config.database.pool);
 
     let mut root_certificates = RootCertStore::empty();
-    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|trust_anchor| {
+    let trust_anchors = webpki_roots::TLS_SERVER_ROOTS.iter().map(|trust_anchor| {
         OwnedTrustAnchor::from_subject_spki_name_constraints(
             trust_anchor.subject,
             trust_anchor.spki,
             trust_anchor.name_constraints,
         )
     });
-    root_certificates.add_server_trust_anchors(trust_anchors);
+    root_certificates.add_trust_anchors(trust_anchors);
 
     let tls_config = rustls::ClientConfig::builder()
         .with_safe_defaults()

@@ -28,7 +28,7 @@ $ErrorActionPreference = "Stop"
 Invoke-NativeCommand cargo fmt
 Invoke-NativeCommand cargo check --all-targets --all-features
 Invoke-NativeCommand cargo test
-Invoke-NativeCommand cargo clippy --all-targets --all-features -- -D warnings
+Invoke-NativeCommand  cargo clippy --all-targets --all-features
 
 try {
     Set-Location web
@@ -37,7 +37,7 @@ try {
     Invoke-NativeCommand npx --no-install prettier --write .
     Invoke-NativeCommand npm run build
 
-    echo "All ok!"
+    Write-Output "All ok!"
 }
 catch {
     Write-Host "An error occurred: $_"

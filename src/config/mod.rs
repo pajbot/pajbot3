@@ -4,9 +4,9 @@ pub mod web;
 use crate::api::twitch;
 use crate::config::database::DatabaseConfig;
 use crate::config::web::WebConfig;
+use anyhow::Context;
 use serde::Deserialize;
 use std::path::Path;
-use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -18,19 +18,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub async fn load(path: &Path) -> Result<Config, LoadConfigError> {
+    pub async fn load(path: &Path) -> anyhow::Result<Config> {
         let file_contents = tokio::fs::read(path)
             .await
-            .map_err(LoadConfigError::ReadFile)?;
-        let config = toml::from_slice(&file_contents).map_err(LoadConfigError::ParseContents)?;
+            .with_context(|| format!("Failed to read Config file from {}", path.display()))?;
+        let config = toml::from_str(
+            &String::from_utf8(file_contents).context("Config file contains Non-UTF8-text")?,
+        )
+        .context("Failed to parse Config file contents")?;
         Ok(config)
     }
-}
-
-#[derive(Error, Debug)]
-pub enum LoadConfigError {
-    #[error("Failed to read file: {0}")]
-    ReadFile(std::io::Error),
-    #[error("Failed to parse contents: {0}")]
-    ParseContents(toml::de::Error),
 }

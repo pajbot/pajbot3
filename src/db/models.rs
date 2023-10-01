@@ -1,4 +1,4 @@
-///! Data models as they are stored in the database.
+//! Data models as they are stored in the database.
 use chrono::{DateTime, Utc};
 use postgres_types::{FromSql, ToSql};
 use serde::{Deserialize, Serialize};

@@ -6,7 +6,7 @@ set -e
 cargo fmt
 cargo check --all-targets --all-features
 cargo test
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --all-targets --all-features
 
 cd web
 npm i

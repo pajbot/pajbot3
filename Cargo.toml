@@ -1,8 +1,6 @@
 [package]
 name = "pajbot3"
-authors = [
-    "Ruben Anders <ruben.anders@robotty.de>"
-]
+authors = ["Ruben Anders <ruben.anders@robotty.de>"]
 description = "Twitch moderation bot"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/pajbot/pajbot3"
@@ -16,34 +14,37 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1"
-axum = { version = "0.6", features = ["headers", "macros"]}
+axum = { version = "0.6", features = ["headers", "macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
-deadpool-postgres = { version = "0.10", features = ["rt_tokio_1"] }
-enum-assoc = "0.3"
+deadpool-postgres = { version = "0.11", features = ["rt_tokio_1"] }
+enum-assoc = "1"
 futures = "0.3"
 http = "0.2"
 humantime-serde = "1"
 hyper = "0.14"
-itertools = "0.10"
+itertools = "0.11"
 lazy_static = "1"
 num_cpus = "1"
 rand = "0.8"
 refinery = { version = "0.8", features = ["tokio-postgres"] }
 regex = "1"
-reqwest = { version = "0.11", features = ["rustls-tls-webpki-roots", "json"], default-features = false }
-rustls = "0.20"
+reqwest = { version = "0.11", features = [
+    "rustls-tls-webpki-roots",
+    "json",
+], default-features = false }
+rustls = "0.21"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
-tokio-postgres-rustls = "0.9"
+tokio-postgres-rustls = "0.10"
 tokio-util = "0.7"
-toml = "0.5"
-tower-http = { version = "0.3", features = ["cors", "fs"] }
+toml = "0.8"
+tower-http = { version = "0.4", features = ["cors", "fs"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
-webpki-roots = "0.22"
+webpki-roots = "0.25"
 postgres-types = { version = "0.2", features = ["derive"] }
 maplit = "1"
 
