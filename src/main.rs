@@ -1,4 +1,5 @@
 use crate::args::Args;
+use crate::config::database::DatabaseConfig;
 use crate::config::Config;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -6,13 +7,14 @@ use clap::Parser;
 use futures::future::FusedFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;
+use migration::{Migrator, MigratorTrait};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::process::ExitCode;
 use tokio_util::sync::CancellationToken;
 
 pub mod api;
 pub mod args;
 pub mod config;
-pub mod db;
 pub mod shutdown;
 pub mod web;
 
@@ -48,9 +50,10 @@ async fn main_inner() -> anyhow::Result<()> {
     tracing::debug!("Successfully loaded config: {:#?}", config);
 
     // db init
-    let data_storage = Box::leak(Box::new(db::connect_to_postgresql(config).await));
-    data_storage
-        .run_migrations()
+    let connection = Database::connect(&config.database)
+        .await
+        .context("Failed to connect to database")?;
+    Migrator::up(&connection, None)
         .await
         .context("Failed to run database migrations")?;
     tracing::info!("Successfully ran database migrations");

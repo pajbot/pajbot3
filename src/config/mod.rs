@@ -10,7 +10,6 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    #[serde(default)]
     pub database: DatabaseConfig,
     #[serde(default)]
     pub web: WebConfig,
