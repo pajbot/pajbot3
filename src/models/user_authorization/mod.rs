@@ -1,17 +1,18 @@
+mod op;
+
+pub use op::*;
+
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "special_twitch_authorization")]
+#[sea_orm(table_name = "user_authorization")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub user_id: String,
-
-    pub bot_scope_version: Option<i16>,
-    pub broadcaster_scope_version: Option<i16>,
-
+    pub access_token: String,
     pub twitch_access_token: String,
     pub twitch_refresh_token: String,
     pub valid_until: ChronoDateTimeUtc,
+    pub user_id: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -31,3 +32,7 @@ impl Related<super::user::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
+
+/// This type is used whenever a user authorization is handled that might be expired,
+/// to ensure that the two are not accidentally mixed through the type system.
+pub struct PossiblyExpired(pub Model);

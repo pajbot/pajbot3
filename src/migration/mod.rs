@@ -3,7 +3,6 @@ pub use sea_orm_migration::prelude::*;
 #[derive(DeriveMigrationName)]
 pub struct RawSqlMigration {
     up_sql: &'static str,
-    down_sql: &'static str,
 }
 
 #[async_trait::async_trait]
@@ -15,21 +14,12 @@ impl MigrationTrait for RawSqlMigration {
             .await?;
         Ok(())
     }
-
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager
-            .get_connection()
-            .execute_unprepared(self.down_sql)
-            .await?;
-        Ok(())
-    }
 }
 
 macro_rules! raw_sql_migration {
     ($e:expr) => {
         Box::new(RawSqlMigration {
-            up_sql: include_str!(concat!($e, "_up.sql")),
-            down_sql: include_str!(concat!($e, "_down.sql")),
+            up_sql: include_str!(concat!($e, ".sql")),
         })
     };
 }

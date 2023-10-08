@@ -12,13 +12,13 @@ pub struct DatabaseConfig {
     pub max_connections: Option<u32>,
     #[serde(default)]
     pub min_connections: Option<u32>,
-    #[serde(default)]
+    #[serde(default, with = "humantime_serde")]
     pub connect_timeout: Option<std::time::Duration>,
-    #[serde(default)]
+    #[serde(default, with = "humantime_serde")]
     pub idle_timeout: Option<std::time::Duration>,
-    #[serde(default)]
+    #[serde(default, with = "humantime_serde")]
     pub acquire_timeout: Option<std::time::Duration>,
-    #[serde(default)]
+    #[serde(default, with = "humantime_serde")]
     pub max_lifetime: Option<std::time::Duration>,
     #[serde_as(as = "Option<LogLevelFilter>")]
     #[serde(default)]
@@ -55,7 +55,7 @@ impl<'de> DeserializeAs<'de, log::LevelFilter> for LogLevelFilter {
 
 impl From<&DatabaseConfig> for ConnectOptions {
     fn from(value: &DatabaseConfig) -> ConnectOptions {
-        let mut options = ConnectOptions::new(value.url);
+        let mut options = ConnectOptions::new(value.url.clone());
         if let Some(max_connections) = value.max_connections {
             options.max_connections(max_connections);
         }
@@ -79,7 +79,7 @@ impl From<&DatabaseConfig> for ConnectOptions {
                 .sqlx_logging(sqlx_logging_level != log::LevelFilter::Off)
                 .sqlx_logging_level(sqlx_logging_level);
         }
-        if let Some(schema_search_path) = value.schema_search_path {
+        if let Some(schema_search_path) = value.schema_search_path.clone() {
             options.set_schema_search_path(schema_search_path);
         }
         options

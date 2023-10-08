@@ -1,14 +1,21 @@
+mod op;
+
+pub use op::*;
+
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "user_authorization")]
+#[sea_orm(table_name = "special_twitch_authorization")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub access_token: String,
+    pub user_id: String,
+
+    pub bot_scope_version: Option<i16>,
+    pub broadcaster_scope_version: Option<i16>,
+
     pub twitch_access_token: String,
     pub twitch_refresh_token: String,
     pub valid_until: ChronoDateTimeUtc,
-    pub user_id: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -2,47 +2,31 @@ pub mod auth;
 pub mod error;
 
 use crate::config::web::ListenAddr;
-use crate::db::DataStorage;
 use crate::web::error::ApiError;
 use crate::Config;
+use anyhow::Context;
 use axum::http::{header, Method};
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
 use futures::future::BoxFuture;
-use std::net::SocketAddr;
-use thiserror::Error;
+use sea_orm::DatabaseConnection;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{self, CorsLayer};
 #[cfg(unix)]
-use {
-    hyperlocal::UnixServerExt, std::fs::Permissions, std::os::unix::fs::PermissionsExt,
-    std::path::Path,
-};
+use {hyperlocal::UnixServerExt, std::fs::Permissions, std::os::unix::fs::PermissionsExt};
 
 #[derive(Clone, Copy)]
 pub struct WebAppData {
     config: &'static Config,
-    db: &'static DataStorage,
-}
-
-#[derive(Error, Debug)]
-pub enum BindError {
-    #[error("Failed to bind to address `{0}`: {1}")]
-    BindTcp(&'static SocketAddr, hyper::Error),
-    #[cfg(unix)]
-    #[error("Failed to bind to unix socket `{}`: {1}", .0.display())]
-    BindUnix(&'static Path, std::io::Error),
-    #[cfg(unix)]
-    #[error("Failed to alter permissions on unix socket `{}` to `{1:?}`: {2}", .0.display())]
-    SetPermissions(&'static Path, Permissions, std::io::Error),
+    db: &'static DatabaseConnection,
 }
 
 pub async fn run(
     config: &'static Config,
-    db: &'static DataStorage,
+    db: &'static DatabaseConnection,
     shutdown_signal: CancellationToken,
-) -> Result<BoxFuture<'static, hyper::Result<()>>, BindError> {
+) -> anyhow::Result<BoxFuture<'static, hyper::Result<()>>> {
     let shared_state = WebAppData { config, db };
 
     let cors = CorsLayer::new()
@@ -77,7 +61,7 @@ pub async fn run(
     Ok(match &config.web.listen_address {
         ListenAddr::Tcp { address } => Box::pin(
             axum::Server::try_bind(address)
-                .map_err(|e| BindError::BindTcp(address, e))?
+                .with_context(|| format!("Failed to bind to address `{}`", address))?
                 .serve(app.into_make_service())
                 .with_graceful_shutdown(async move {
                     shutdown_signal.cancelled().await;
@@ -85,12 +69,18 @@ pub async fn run(
         ),
         #[cfg(unix)]
         ListenAddr::Unix { path } => {
-            let builder =
-                axum::Server::bind_unix(path).map_err(|e| BindError::BindUnix(path, e))?;
+            let builder = axum::Server::bind_unix(path)
+                .with_context(|| format!("Failed to bind to unix socket `{}`", path.display()))?;
             let permissions = Permissions::from_mode(0o777);
             tokio::fs::set_permissions(path, permissions.clone())
                 .await
-                .map_err(|e| BindError::SetPermissions(path, permissions, e))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to alter permissions on unix socket `{}` to `{:?}`",
+                        path.display(),
+                        permissions
+                    )
+                })?;
             Box::pin(
                 builder
                     .serve(app.into_make_service())

@@ -60,5 +60,5 @@ CREATE TABLE user_authorization
 CREATE TABLE bot
 (
     broadcaster_id TEXT NOT NULL PRIMARY KEY REFERENCES "user" (id),
-    bot_id         TEXT NOT NULL REFERENCES "user"(id),
+    bot_id         TEXT NOT NULL REFERENCES "user"(id)
 );

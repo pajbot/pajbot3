@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum ListenAddr {
     #[serde(rename = "tcp")]
     Tcp { address: SocketAddr },

@@ -7,11 +7,9 @@ pub mod revoke_login;
 use crate::api;
 use crate::api::twitch::auth::{GetTokenError, TwitchUserAccessToken};
 use crate::api::twitch::user::UserDetails;
-use crate::db::models::UserBasics;
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Transaction;
 use http::StatusCode;
 use serde::Serialize;
 
@@ -47,20 +45,4 @@ pub async fn exchange_code(
     )
     .await?;
     Ok((twitch_user_access_token, user_details))
-}
-
-pub async fn upsert_user<'a>(
-    user_basics: &'a UserBasics,
-    tx: &'a Transaction<'a>,
-) -> Result<(), tokio_postgres::Error> {
-    tx.execute(
-        r#"INSERT INTO "user"(id, login, display_name) VALUES ($1, $2, $3)
-        ON CONFLICT (id) DO UPDATE SET login = excluded.login, display_name = excluded.display_name"#,
-        &[
-            &user_basics.id,
-            &user_basics.login,
-            &user_basics.display_name,
-        ],
-    )
-        .await.map(|_| ())
 }

@@ -1,20 +1,22 @@
 use crate::args::Args;
-use crate::config::database::DatabaseConfig;
 use crate::config::Config;
+use crate::migration::Migrator;
 use anyhow::anyhow;
 use anyhow::Context;
 use clap::Parser;
 use futures::future::FusedFuture;
 use futures::FutureExt;
 use lazy_static::lazy_static;
-use migration::{Migrator, MigratorTrait};
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::Database;
+use sea_orm_migration::MigratorTrait;
 use std::process::ExitCode;
 use tokio_util::sync::CancellationToken;
 
 pub mod api;
 pub mod args;
 pub mod config;
+pub mod migration;
+pub mod models;
 pub mod shutdown;
 pub mod web;
 
@@ -50,17 +52,19 @@ async fn main_inner() -> anyhow::Result<()> {
     tracing::debug!("Successfully loaded config: {:#?}", config);
 
     // db init
-    let connection = Database::connect(&config.database)
-        .await
-        .context("Failed to connect to database")?;
-    Migrator::up(&connection, None)
+    let db = Box::leak(Box::new(
+        Database::connect(&config.database)
+            .await
+            .context("Failed to connect to database")?,
+    ));
+    Migrator::up(&(*db), None)
         .await
         .context("Failed to run database migrations")?;
     tracing::info!("Successfully ran database migrations");
 
     let shutdown_signal = CancellationToken::new();
 
-    let webserver = web::run(config, data_storage, shutdown_signal.clone())
+    let webserver = web::run(config, db, shutdown_signal.clone())
         .await
         .context("Failed to run web server")?;
     let mut webserver_join_handle = tokio::spawn(webserver).fuse();

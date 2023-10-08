@@ -1,17 +1,20 @@
 use crate::api;
 use crate::api::twitch::auth::RefreshTokenError;
-use crate::web::auth::require_auth::PossiblyExpiredUserAuthorization;
-use crate::web::auth::{upsert_user, UserAuthorizationResponse};
+use crate::models::{user, user_authorization};
+use crate::web::auth::UserAuthorizationResponse;
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
-use axum::{Extension, Json};
+use axum::extract::State;
+use axum::Json;
 use chrono::{Duration, Utc};
 use http::StatusCode;
+use sea_orm::ActiveValue::Set;
+use sea_orm::{ActiveModelTrait, TransactionTrait};
 
 // POST /api/v1/auth/extend
 pub async fn refresh_token(
-    Extension(app_data): Extension<WebAppData>,
-    auth: PossiblyExpiredUserAuthorization,
+    State(app_data): State<WebAppData>,
+    (auth, _): (user_authorization::PossiblyExpired, user::Model),
 ) -> Result<Json<UserAuthorizationResponse>, ApiError> {
     let new_twitch_auth =
         api::twitch::auth::refresh_token(&app_data.config.twitch_api, &auth.0.twitch_refresh_token)
@@ -34,10 +37,9 @@ pub async fn refresh_token(
     )
     .await?;
 
-    let mut db_conn = app_data.db.get().await?;
-    let tx = db_conn.transaction().await?;
+    let tx = app_data.db.begin().await?;
 
-    upsert_user(&user_details.basics, &tx).await?;
+    user::upsert_user(user_details.basics.clone(), &tx).await?;
 
     // tokens are supposed to be valid for a maximum of one hour.
     // See https://dev.twitch.tv/docs/authentication/validate-tokens#who-must-validate-tokens
@@ -47,24 +49,14 @@ pub async fn refresh_token(
         valid_until = new_twitch_auth.valid_until;
     }
 
-    tx.execute(
-        r#"
-    UPDATE user_authorization
-    SET twitch_access_token = $1,
-    twitch_refresh_token = $2,
-    valid_until = $3,
-    user_id = $4
-    WHERE access_token = $5"#,
-        &[
-            &new_twitch_auth.access_token,
-            &new_twitch_auth.refresh_token,
-            &valid_until,
-            &user_details.basics.id,
-            &auth.0.access_token,
-        ],
-    )
-    .await?;
-
+    let fresh_auth = user_authorization::ActiveModel {
+        access_token: Set(auth.0.access_token.clone()),
+        twitch_access_token: Set(new_twitch_auth.access_token),
+        twitch_refresh_token: Set(new_twitch_auth.refresh_token),
+        valid_until: Set(valid_until),
+        user_id: Set(user_details.basics.id.clone()),
+    };
+    fresh_auth.update(&tx).await?;
     tx.commit().await?;
 
     Ok(Json(UserAuthorizationResponse {

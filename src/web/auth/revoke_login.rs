@@ -1,26 +1,24 @@
 use crate::api;
-use crate::web::auth::require_auth::PossiblyExpiredUserAuthorization;
+use crate::models::{user, user_authorization};
 use crate::web::error::ApiError;
 use crate::web::WebAppData;
-use axum::Extension;
+use anyhow::Context;
+use axum::extract::State;
 use http::StatusCode;
+use sea_orm::ModelTrait;
 
 pub async fn revoke_token(
-    Extension(app_data): Extension<WebAppData>,
-    auth: PossiblyExpiredUserAuthorization,
+    State(app_data): State<WebAppData>,
+    (auth, _): (user_authorization::PossiblyExpired, user::Model),
 ) -> Result<StatusCode, ApiError> {
     api::twitch::auth::revoke_token(&app_data.config.twitch_api, &auth.0.twitch_access_token)
-        .await?;
+        .await
+        .context("revoke_token call twitch")?;
 
-    app_data
-        .db
-        .get()
-        .await?
-        .execute(
-            "DELETE FROM user_authorization WHERE access_token = $1",
-            &[&auth.0.access_token],
-        )
-        .await?;
+    auth.0
+        .delete(app_data.db)
+        .await
+        .context("revoke_token delete from DB")?;
 
     Ok(StatusCode::NO_CONTENT)
 }
