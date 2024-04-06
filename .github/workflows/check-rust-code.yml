@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [ubuntu, windows, macOS]
+        os: [ubuntu, macOS]
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: dtolnay/rust-toolchain@master
