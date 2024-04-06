@@ -9,19 +9,17 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [ ubuntu, windows, macOS ]
+        os: [ubuntu, windows, macOS]
     steps:
       - uses: actions/checkout@v2.4.0
-      - uses: hecrj/setup-rust-action@v1
-      - uses: actions/cache@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: v2-build-and-test-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          toolchain: stable
+          components: clippy
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: "rust-cache-${{ matrix.os }}"
       # same checks as with `cargo build`, but no binaries are generated at the end, saving some time.
       - run: cargo check --all-targets --all-features
       - run: cargo test
@@ -30,27 +28,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
-      - uses: hecrj/setup-rust-action@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          rust-version: stable
-          components: rustfmt
+          toolchain: stable
+          components: clippy rustfmt
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: "rust-cache-ubuntu"
       - run: cargo fmt -- --check
   check-lints:
     name: Run linter on Rust code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
-      - uses: hecrj/setup-rust-action@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
-          rust-version: stable
+          toolchain: stable
           components: clippy
-      - uses: actions/cache@v3
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: v2-check-lints-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: "rust-cache-ubuntu"
       - run: cargo clippy --all-targets --all-features -- -D warnings
