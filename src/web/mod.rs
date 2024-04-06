@@ -59,7 +59,7 @@ pub async fn run(
         .nest("/api/v1", api)
         .with_state(shared_state);
 
-    Ok(match &config.web.listen_address {
+    Ok(match &config.web.listen {
         ListenAddr::Tcp { address } => {
             let listener = TcpListener::bind(address)
                 .await
