@@ -1,6 +1,14 @@
-on: [push, pull_request]
-
+---
 name: Check Rust code
+
+on:
+  push:
+    branches:
+      - master
+      - "release/*"
+  pull_request:
+  workflow_dispatch:
+  merge_group:
 
 # If changing any of the commands, make the same changes to pre-push-check.sh!
 jobs:
@@ -9,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [ubuntu, windows, macOS]
+        os: [ubuntu, macOS]
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: dtolnay/rust-toolchain@master

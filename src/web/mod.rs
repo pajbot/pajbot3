@@ -1,6 +1,8 @@
 pub mod auth;
 pub mod error;
 
+use std::future::IntoFuture;
+
 use crate::config::web::ListenAddr;
 use crate::web::error::ApiError;
 use crate::Config;
@@ -11,10 +13,9 @@ use axum::routing::post;
 use axum::Router;
 use futures::future::BoxFuture;
 use sea_orm::DatabaseConnection;
+use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{self, CorsLayer};
-#[cfg(unix)]
-use {hyperlocal::UnixServerExt, std::fs::Permissions, std::os::unix::fs::PermissionsExt};
 
 #[derive(Clone, Copy)]
 pub struct WebAppData {
@@ -26,7 +27,7 @@ pub async fn run(
     config: &'static Config,
     db: &'static DatabaseConnection,
     shutdown_signal: CancellationToken,
-) -> anyhow::Result<BoxFuture<'static, hyper::Result<()>>> {
+) -> anyhow::Result<BoxFuture<'static, std::io::Result<()>>> {
     let shared_state = WebAppData { config, db };
 
     let cors = CorsLayer::new()
@@ -59,35 +60,21 @@ pub async fn run(
         .with_state(shared_state);
 
     Ok(match &config.web.listen_address {
-        ListenAddr::Tcp { address } => Box::pin(
-            axum::Server::try_bind(address)
-                .with_context(|| format!("Failed to bind to address `{}`", address))?
-                .serve(app.into_make_service())
-                .with_graceful_shutdown(async move {
-                    shutdown_signal.cancelled().await;
-                }),
-        ),
-        #[cfg(unix)]
-        ListenAddr::Unix { path } => {
-            let builder = axum::Server::bind_unix(path)
-                .with_context(|| format!("Failed to bind to unix socket `{}`", path.display()))?;
-            let permissions = Permissions::from_mode(0o777);
-            tokio::fs::set_permissions(path, permissions.clone())
+        ListenAddr::Tcp { address } => {
+            let listener = TcpListener::bind(address)
                 .await
-                .with_context(|| {
-                    format!(
-                        "Failed to alter permissions on unix socket `{}` to `{:?}`",
-                        path.display(),
-                        permissions
-                    )
-                })?;
+                .with_context(|| format!("Failed to bind to address `{}`", address))?;
             Box::pin(
-                builder
-                    .serve(app.into_make_service())
+                axum::serve(listener, app)
                     .with_graceful_shutdown(async move {
                         shutdown_signal.cancelled().await;
-                    }),
+                    })
+                    .into_future(),
             )
+        }
+        #[cfg(unix)]
+        ListenAddr::Unix { .. } => {
+            unimplemented!("Waiting for axum 0.8 for this to be done easily, see https://github.com/tokio-rs/axum/pull/2479");
         }
     })
 }
