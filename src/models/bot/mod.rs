@@ -1,7 +1,5 @@
 mod op;
 
-pub use op::*;
-
 use sea_orm::entity::prelude::*;
 use sea_orm::entity::LinkDef;
 use serde::{Deserialize, Serialize};
