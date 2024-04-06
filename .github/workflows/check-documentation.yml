@@ -8,17 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.4.0
-      - uses: hecrj/setup-rust-action@v1
-      - uses: actions/cache@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
-          path: |
-            /usr/share/rust/.cargo/bin/mdbook
-            /usr/share/rust/.cargo/registry/index/
-            /usr/share/rust/.cargo/registry/cache/
-            /usr/share/rust/.cargo/git/db/
-            /usr/share/rust/.cargo/.crates.toml
-            /usr/share/rust/.cargo/.crates2.json
-          key: v4-mdbook-0.4
+          toolchain: stable
+          components: clippy
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: "rust-cache-ubuntu"
       - run: cargo install mdbook --vers "^0.4"
       - run: mdbook build docs
       - run: mdbook test docs
