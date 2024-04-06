@@ -41,6 +41,7 @@ tower-http = { version = "0.5", features = ["cors", "fs"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 webpki-roots = "0.26"
+twitch_api = { version = "0.7.0-rc.7", features = ["helix", "eventsub", "hmac", "reqwest"] }
 
 [target.'cfg(unix)'.dependencies]
 hyperlocal = "0.8"
