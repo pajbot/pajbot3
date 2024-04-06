@@ -34,7 +34,7 @@ impl From<TwitchUserAccessTokenResponse> for TwitchUserAccessToken {
             valid_until: Utc::now() + Duration::seconds(resp.expires_in),
             scope: match resp.scope {
                 None => HashSet::new(),
-                Some(scope) => HashSet::from_iter(scope.into_iter()),
+                Some(scope) => HashSet::from_iter(scope),
             },
         }
     }
