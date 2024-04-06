@@ -14,6 +14,7 @@ use tokio_util::sync::CancellationToken;
 
 pub mod api;
 pub mod args;
+pub mod bot;
 pub mod config;
 pub mod migration;
 pub mod models;
@@ -69,6 +70,10 @@ async fn main_inner() -> anyhow::Result<()> {
         .context("Failed to run web server")?;
     let mut webserver_join_handle = tokio::spawn(webserver).fuse();
 
+    let mut bot_join_handle = bot::run(config, db, shutdown_signal.clone())
+        .await
+        .context("Failed to run bot")?;
+
     let os_shutdown_signal = shutdown::shutdown_signal().fuse();
     futures::pin_mut!(os_shutdown_signal);
 
@@ -84,6 +89,9 @@ async fn main_inner() -> anyhow::Result<()> {
                 tracing::debug!("Received shutdown signal from operating system, shutting down application...");
                 shutdown_signal.cancel();
             },
+            bot_res = &mut bot_join_handle => {
+                tracing::info!("bot res: {bot_res:?}");
+            }
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
                 // two cases:
                 // - webserver ends on its own WITHOUT us sending the
