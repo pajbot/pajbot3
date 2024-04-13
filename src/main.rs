@@ -10,16 +10,20 @@ use lazy_static::lazy_static;
 use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 use std::process::ExitCode;
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use twitch_types::UserId;
 
 pub mod api;
 pub mod args;
 pub mod bot;
 pub mod config;
+mod events;
 pub mod migration;
 pub mod models;
 pub mod shutdown;
 pub mod web;
+pub use events::Events;
 
 lazy_static! {
     static ref HTTP_CLIENT: reqwest::Client = reqwest::Client::new();
@@ -63,6 +67,16 @@ async fn main_inner() -> anyhow::Result<()> {
         .context("Failed to run database migrations")?;
     tracing::info!("Successfully ran database migrations");
 
+    let events = Arc::new(Events::new());
+
+    let mut rx = events.get_receiver_chat_message(UserId::new("11148817".to_string()))?;
+
+    tokio::spawn(async move {
+        while let xd = rx.recv().await.unwrap() {
+            tracing::info!("received msg {xd:?}");
+        }
+    });
+
     let shutdown_signal = CancellationToken::new();
 
     let webserver = web::run(config, db, shutdown_signal.clone())
@@ -70,9 +84,18 @@ async fn main_inner() -> anyhow::Result<()> {
         .context("Failed to run web server")?;
     let mut webserver_join_handle = tokio::spawn(webserver).fuse();
 
-    let mut bot_join_handle = bot::run(config, db, shutdown_signal.clone())
+    for bot_config in config.twitch_bot.values() {
+        tracing::info!("bot: {bot_config:?}");
+        let mut bot_join_handle = bot::run(
+            config,
+            bot_config,
+            db,
+            events.clone(),
+            shutdown_signal.clone(),
+        )
         .await
         .context("Failed to run bot")?;
+    }
 
     let os_shutdown_signal = shutdown::shutdown_signal().fuse();
     futures::pin_mut!(os_shutdown_signal);
@@ -89,9 +112,10 @@ async fn main_inner() -> anyhow::Result<()> {
                 tracing::debug!("Received shutdown signal from operating system, shutting down application...");
                 shutdown_signal.cancel();
             },
-            bot_res = &mut bot_join_handle => {
-                tracing::info!("bot res: {bot_res:?}");
-            }
+            // TODO
+            // bot_res = &mut bot_join_handle => {
+            //     tracing::info!("bot res: {bot_res:?}");
+            // }
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
                 // two cases:
                 // - webserver ends on its own WITHOUT us sending the

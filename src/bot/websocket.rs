@@ -1,7 +1,14 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use anyhow::Context;
+use dashmap::DashMap;
 use tokio_tungstenite::tungstenite;
 use tracing::Instrument;
+use twitch_api::eventsub::channel::chat::message::ChannelChatMessageV1Payload;
 use twitch_api::twitch_oauth2::{TwitchToken, UserToken};
+use twitch_api::types::UserId;
 use twitch_api::{
     eventsub::{
         self,
@@ -11,18 +18,24 @@ use twitch_api::{
     types::{self},
     HelixClient,
 };
+use twitch_oauth2::AppAccessToken;
+
+use crate::Events;
 
 pub struct WebsocketClient {
     /// The session id of the websocket connection
     pub session_id: Option<String>,
     /// The token used to authenticate with the Twitch API
-    pub token: UserToken,
+    pub token: AppAccessToken,
+    pub bot_user_id: UserId,
     /// The client used to make requests to the Twitch API
     pub client: HelixClient<'static, reqwest::Client>,
     /// The user id of the channel we want to listen to
-    pub user_id: types::UserId,
+    pub user_id: UserId,
     /// The url to use for websocket
     pub connect_url: url::Url,
+
+    pub events: Arc<Events>,
 
     pub on_ready_sender: Option<tokio::sync::mpsc::Sender<String>>,
 }
@@ -78,7 +91,6 @@ impl WebsocketClient {
         loop {
             tokio::select!(
             Some(msg) = futures::StreamExt::next(&mut s) => {
-                let span = tracing::info_span!("message received", raw_message = ?msg);
                 let msg = match msg {
                     Err(tungstenite::Error::Protocol(
                         tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
@@ -87,14 +99,14 @@ impl WebsocketClient {
                             "connection was sent an unexpected frame or was reset, reestablishing it"
                         );
                         s = self
-                            .connect().instrument(span)
+                            .connect()
                             .await
                             .context("when reestablishing connection")?;
                         continue
                     }
                     _ => msg.context("when getting message")?,
                 };
-                self.process_message(msg).instrument(span).await?
+                self.process_message(msg).await?
             })
         }
     }
@@ -103,7 +115,6 @@ impl WebsocketClient {
     pub async fn process_message(&mut self, msg: tungstenite::Message) -> anyhow::Result<()> {
         match msg {
             tungstenite::Message::Text(s) => {
-                tracing::info!("{s}");
                 // Parse the message into a [twitch_api::eventsub::EventsubWebsocketData]
                 match Event::parse_websocket(&s)? {
                     EventsubWebsocketData::Welcome {
@@ -128,6 +139,20 @@ impl WebsocketClient {
                             }
                             Event::ChannelUnbanV1(eventsub::Payload { message, .. }) => {
                                 tracing::info!(?message, "got ban event");
+                            }
+                            Event::ChannelChatMessageV1(eventsub::Payload { message, .. }) => {
+                                match message {
+                                    eventsub::Message::VerificationRequest(_) => unreachable!(
+                                        "This should only be reachable by webhook events"
+                                    ),
+                                    eventsub::Message::Revocation() => unreachable!(
+                                        "This should be handled by the Revocation portion below"
+                                    ),
+                                    eventsub::Message::Notification(message) => {
+                                        self.events.publish_chat_message(message)?;
+                                    }
+                                    _ => panic!("non_exhaustive enum {message:?}"),
+                                }
                             }
                             _ => {}
                         }
@@ -163,29 +188,10 @@ impl WebsocketClient {
         }
         // check if the token is expired, if it is, request a new token. This only works if using a oauth service for getting a token
         if self.token.is_elapsed() {
-            anyhow::bail!("XD TOKE NESALPED");
+            anyhow::bail!("Token is elasped :(");
             // self.token =
             //     crate::util::get_access_token(self.client.get_client(), &self.opts).await?;
         }
-        let transport = eventsub::Transport::websocket(data.id.clone());
-        tracing::info!("subscribe 1");
-        self.client
-            .create_eventsub_subscription(
-                eventsub::channel::ChannelBanV1::broadcaster_user_id(self.user_id.clone()),
-                transport.clone(),
-                &self.token,
-            )
-            .await?;
-        tracing::info!("subscribed 1");
-        self.client
-            .create_eventsub_subscription(
-                eventsub::channel::ChannelUnbanV1::broadcaster_user_id(self.user_id.clone()),
-                transport,
-                &self.token,
-            )
-            .await?;
-        tracing::info!("subscribed 2");
-        tracing::info!("listening to ban and unbans");
         Ok(())
     }
 }

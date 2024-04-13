@@ -41,17 +41,23 @@ tower-http = { version = "0.5", features = ["cors", "fs"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 webpki-roots = "0.26"
-twitch_api = { git = "https://github.com/twitch-rs/twitch_api/", features = ["helix", "eventsub", "hmac", "reqwest"] }
-twitch_oauth2 = { git = "https://github.com/twitch-rs/twitch_api/" }
-twitch_types = { git = "https://github.com/twitch-rs/twitch_api/" }
+# twitch_api = { git = "https://github.com/twitch-rs/twitch_api/", features = ["helix", "eventsub", "hmac", "reqwest"] }
+# twitch_oauth2 = { git = "https://github.com/twitch-rs/twitch_api/" }
+# twitch_types = { git = "https://github.com/twitch-rs/twitch_api/" }
+twitch_api = { path = "/home/pajlada/git/twitch_api", features = ["helix", "eventsub", "hmac", "reqwest"] }
+twitch_oauth2 = { path = "../twitch_api/twitch_oauth2" }
+twitch_types = { path = "../twitch_api/twitch_types" }
 tokio-tungstenite = { version = "0.20.1", features = ["native-tls"] }
 url = "2.5.0"
+dashmap = "5.5.3"
 
 [target.'cfg(unix)'.dependencies]
 hyperlocal = "0.8"
 
 # workaround for https://github.com/twitch-rs/twitch_api/issues/256
 [patch.crates-io.twitch_types]
-git = "https://github.com/twitch-rs/twitch_api"
+# git = "https://github.com/twitch-rs/twitch_api"
+path = "../twitch_api/twitch_types"
 [patch.crates-io.twitch_oauth2]
-git = "https://github.com/twitch-rs/twitch_api"
+# git = "https://github.com/twitch-rs/twitch_api"
+path = "../twitch_api/twitch_oauth2"

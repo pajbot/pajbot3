@@ -707,6 +707,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+dependencies = [
+ "cfg-if",
+ "hashbrown 0.14.3",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1785,6 +1798,7 @@ dependencies = [
  "axum-extra",
  "chrono",
  "clap",
+ "dashmap",
  "futures",
  "http 1.1.0",
  "humantime-serde",
@@ -3458,7 +3472,6 @@ dependencies = [
 [[package]]
 name = "twitch_api"
 version = "0.7.0-rc.7"
-source = "git+https://github.com/twitch-rs/twitch_api/#448ef91900f049f100918f20dc3e07c6059cdb1c"
 dependencies = [
  "aliri_braid",
  "async-trait",
@@ -3485,7 +3498,6 @@ dependencies = [
 [[package]]
 name = "twitch_oauth2"
 version = "0.13.0"
-source = "git+https://github.com/twitch-rs/twitch_api/#448ef91900f049f100918f20dc3e07c6059cdb1c"
 dependencies = [
  "aliri_braid",
  "async-trait",
@@ -3506,7 +3518,6 @@ dependencies = [
 [[package]]
 name = "twitch_types"
 version = "0.4.4"
-source = "git+https://github.com/twitch-rs/twitch_api/#448ef91900f049f100918f20dc3e07c6059cdb1c"
 dependencies = [
  "serde",
  "serde_derive",
