@@ -43,3 +43,9 @@ impl Events {
         Ok(())
     }
 }
+
+impl Default for Events {
+    fn default() -> Self {
+        Self::new()
+    }
+}

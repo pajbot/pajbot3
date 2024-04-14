@@ -70,14 +70,6 @@ async fn main_inner() -> anyhow::Result<()> {
 
     let events = Arc::new(Events::new());
 
-    let mut rx = events.get_receiver_chat_message(UserId::new("11148817".to_string()))?;
-
-    tokio::spawn(async move {
-        while let xd = rx.recv().await.unwrap() {
-            tracing::info!("received msg {xd:?}");
-        }
-    });
-
     let shutdown_signal = CancellationToken::new();
 
     let webserver = web::run(config, db, shutdown_signal.clone())
@@ -88,7 +80,25 @@ async fn main_inner() -> anyhow::Result<()> {
     let mut bot_handles = JoinSet::new();
     for bot_config in config.twitch_bot.values() {
         tracing::info!("bot: {bot_config:?}");
-        let mut bot_join_handle = bot::run(
+
+        let mut rx =
+            events.get_receiver_chat_message(UserId::new(bot_config.streamer_user_id.clone()))?;
+
+        tokio::spawn(async move {
+            loop {
+                match rx.recv().await {
+                    Ok(message) => {
+                        tracing::info!("received msg {message:?}");
+                    }
+                    Err(e) => {
+                        tracing::warn!("Received an error from the get_chat_message event: {e:?}");
+                        break;
+                    }
+                }
+            }
+        });
+
+        let bot_join_handle = bot::run(
             config,
             bot_config,
             db,

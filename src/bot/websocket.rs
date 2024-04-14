@@ -1,47 +1,74 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Context;
-use dashmap::DashMap;
 use tokio_tungstenite::tungstenite;
 use tokio_util::sync::CancellationToken;
-use tracing::Instrument;
-use twitch_api::eventsub::channel::chat::message::ChannelChatMessageV1Payload;
-use twitch_api::twitch_oauth2::{TwitchToken, UserToken};
-use twitch_api::types::UserId;
+use twitch_api::twitch_oauth2::TwitchToken;
 use twitch_api::{
     eventsub::{
         self,
         event::websocket::{EventsubWebsocketData, ReconnectPayload, SessionData, WelcomePayload},
         Event,
     },
-    types::{self},
     HelixClient,
 };
 use twitch_oauth2::AppAccessToken;
 
+use crate::config::BotConfig;
 use crate::Events;
 
 pub struct WebsocketClient {
     /// The session id of the websocket connection
-    pub session_id: Option<String>,
+    session_id: Option<String>,
     /// The token used to authenticate with the Twitch API
-    pub token: AppAccessToken,
-    pub bot_user_id: UserId,
+    token: AppAccessToken,
     /// The client used to make requests to the Twitch API
-    pub client: HelixClient<'static, reqwest::Client>,
+    client: HelixClient<'static, reqwest::Client>,
+    bot_config: &'static BotConfig,
     /// The url to use for websocket
-    pub connect_url: url::Url,
+    connect_url: url::Url,
 
-    pub events: Arc<Events>,
+    events: Arc<Events>,
 
-    pub on_ready_sender: Option<tokio::sync::mpsc::Sender<String>>,
+    on_ready_sender: Option<tokio::sync::mpsc::Sender<String>>,
 }
 
 impl WebsocketClient {
+    pub fn new(
+        token: AppAccessToken,
+        client: HelixClient<'static, reqwest::Client>,
+        bot_config: &'static BotConfig,
+        connect_url: url::Url,
+        events: Arc<Events>,
+    ) -> Self {
+        Self {
+            session_id: None,
+            token,
+            client,
+            bot_config,
+            connect_url,
+            events,
+            on_ready_sender: None,
+        }
+    }
+
+    pub fn start(
+        mut self,
+        shutdown_signal: CancellationToken,
+    ) -> anyhow::Result<(
+        tokio::task::JoinHandle<anyhow::Result<()>>,
+        tokio::sync::mpsc::Receiver<String>,
+    )> {
+        let (sender, receiver) = tokio::sync::mpsc::channel(100);
+
+        self.on_ready_sender = Some(sender);
+        let join_handle = tokio::spawn(async move { self.run(shutdown_signal).await });
+
+        Ok((join_handle, receiver))
+    }
+
     /// Connect to the websocket and return the stream
-    pub async fn connect(
+    async fn connect(
         &self,
     ) -> anyhow::Result<
         tokio_tungstenite::WebSocketStream<
@@ -64,24 +91,9 @@ impl WebsocketClient {
         Ok(socket)
     }
 
-    pub fn start(
-        mut self,
-        shutdown_signal: CancellationToken,
-    ) -> anyhow::Result<(
-        tokio::task::JoinHandle<anyhow::Result<()>>,
-        tokio::sync::mpsc::Receiver<String>,
-    )> {
-        let (sender, receiver) = tokio::sync::mpsc::channel(100);
-
-        self.on_ready_sender = Some(sender);
-        let join_handle = tokio::spawn(async move { self.run(shutdown_signal).await });
-
-        Ok((join_handle, receiver))
-    }
-
     /// Run the websocket subscriber
     // #[tracing::instrument(name = "subscriber", skip_all, fields())]
-    pub async fn run(mut self, shutdown_signal: CancellationToken) -> anyhow::Result<()> {
+    async fn run(mut self, shutdown_signal: CancellationToken) -> anyhow::Result<()> {
         // Establish the stream
         let mut s = self
             .connect()
@@ -117,7 +129,7 @@ impl WebsocketClient {
     }
 
     /// Process a message from the websocket
-    pub async fn process_message(&mut self, msg: tungstenite::Message) -> anyhow::Result<()> {
+    async fn process_message(&mut self, msg: tungstenite::Message) -> anyhow::Result<()> {
         match msg {
             tungstenite::Message::Text(s) => {
                 // Parse the message into a [twitch_api::eventsub::EventsubWebsocketData]
@@ -179,7 +191,7 @@ impl WebsocketClient {
         }
     }
 
-    pub async fn process_welcome_message(&mut self, data: SessionData<'_>) -> anyhow::Result<()> {
+    async fn process_welcome_message(&mut self, data: SessionData<'_>) -> anyhow::Result<()> {
         self.session_id = Some(data.id.to_string());
         tracing::info!("Processing welcome message");
         self.on_ready_sender
@@ -193,9 +205,14 @@ impl WebsocketClient {
         }
         // check if the token is expired, if it is, request a new token. This only works if using a oauth service for getting a token
         if self.token.is_elapsed() {
-            anyhow::bail!("Token is elasped :(");
-            // self.token =
-            //     crate::util::get_access_token(self.client.get_client(), &self.opts).await?;
+            tracing::info!("Refreshing WebSocket AppAccessToken");
+            self.token = AppAccessToken::get_app_access_token(
+                self.client.get_client(),
+                self.bot_config.client_id.clone(),
+                self.bot_config.client_secret.clone(),
+                vec![],
+            )
+            .await?;
         }
         Ok(())
     }

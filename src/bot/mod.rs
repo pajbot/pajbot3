@@ -6,7 +6,6 @@ use anyhow::Context;
 use sea_orm::DatabaseConnection;
 use tokio_util::sync::CancellationToken;
 use twitch_api::client::ClientDefault;
-use twitch_api::twitch_oauth2::{AccessToken, UserToken};
 use twitch_api::HelixClient;
 use twitch_oauth2::AppAccessToken;
 use twitch_types::UserId;
@@ -14,9 +13,9 @@ use twitch_types::UserId;
 mod websocket;
 
 pub async fn run(
-    config: &'static Config,
+    _config: &'static Config,
     bot_config: &'static BotConfig,
-    db: &'static DatabaseConnection,
+    _db: &'static DatabaseConnection,
     events: Arc<Events>,
     shutdown_signal: CancellationToken,
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
@@ -64,11 +63,11 @@ pub async fn run(
         Err(e) => match e {
             twitch_api::helix::ClientRequestError::HelixRequestPostError(e) => match e {
                 twitch_api::helix::HelixRequestPostError::Error {
-                    ref error,
+                    error: _,
                     status,
-                    ref message,
-                    ref uri,
-                    ref body,
+                    message: _,
+                    uri: _,
+                    body: _,
                 } => {
                     if status == reqwest::StatusCode::CONFLICT {
                         tracing::info!("This subscription already exists!");
@@ -86,15 +85,13 @@ pub async fn run(
         },
     }
 
-    let websocket_client = websocket::WebsocketClient {
-        session_id: None,
-        token: token.clone(),
-        bot_user_id: bot_config.bot_user_id.clone().into(),
-        client: client.clone(),
-        connect_url: twitch_api::TWITCH_EVENTSUB_WEBSOCKET_URL.clone(),
+    let websocket_client = websocket::WebsocketClient::new(
+        token.clone(),
+        client.clone(),
+        bot_config,
+        twitch_api::TWITCH_EVENTSUB_WEBSOCKET_URL.clone(),
         events,
-        on_ready_sender: None,
-    };
+    );
 
     let (join_handle, mut recv) = websocket_client.start(shutdown_signal)?;
 
@@ -109,14 +106,6 @@ pub async fn run(
                 .update_conduit_shards(&first_conduit.id, vec![shard], &token)
                 .await;
             tracing::info!("response: {response:?}");
-            // can do helix subscriptions here
-            // let subscription = twitch_api::eventsub::channel::ChannelMes
-
-            // };
-            // let res = client
-            //     .create_eventsub_subscription(subscription, transport, &token)
-            //     .await
-            //     .unwrap();
         }
     });
 
