@@ -18,9 +18,9 @@ path = "postgresql:///pajbot3"
 
 [web]
 # Specifies that address and port to bind to.
-address = "127.0.0.1:2790"
+listen = { address = "127.0.0.1:2790" }
 # On unix systems, you can also use:
-#path = "/var/run/pajbot3/web.sock"
+#listen = { path = "/var/run/pajbot3/web.sock" }
 
 [twitch_api]
 client_id = "abcd"

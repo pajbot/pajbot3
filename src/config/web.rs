@@ -16,13 +16,13 @@ pub enum ListenAddr {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct WebConfig {
-    pub listen_address: ListenAddr,
+    pub listen: ListenAddr,
 }
 
 impl Default for WebConfig {
     fn default() -> Self {
         WebConfig {
-            listen_address: ListenAddr::Tcp {
+            listen: ListenAddr::Tcp {
                 address: "127.0.0.1:2791".parse().unwrap(),
             },
         }
