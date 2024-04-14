@@ -11,7 +11,6 @@ use twitch_api::HelixClient;
 use twitch_oauth2::AppAccessToken;
 use twitch_types::UserId;
 
-mod events;
 mod websocket;
 
 pub async fn run(
