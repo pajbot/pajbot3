@@ -22,7 +22,7 @@ pub async fn run(
 ) -> anyhow::Result<tokio::task::JoinHandle<anyhow::Result<()>>> {
     let client: HelixClient<_> = twitch_api::HelixClient::with_client(
         <reqwest::Client>::default_client_with_name(Some(
-            "twitch-rs/eventsub"
+            "pajbot/3.0"
                 .parse()
                 .with_context(|| "when creating header name")
                 .unwrap(),
