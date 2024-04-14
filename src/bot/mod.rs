@@ -29,8 +29,7 @@ pub async fn run(
         ))
         .with_context(|| "when creating client")?,
     );
-    // let token_from_env = std::env::var("PB3_ACCESS_TOKEN")?;
-    // let token = UserToken::from_token(&client, AccessToken::from(token_from_env)).await?;
+
     let token = AppAccessToken::get_app_access_token(
         client.get_client(),
         bot_config.client_id.clone(),
@@ -38,8 +37,6 @@ pub async fn run(
         vec![],
     )
     .await?;
-
-    let user_id = "11148817";
 
     // let resulting_conduit = client.create_conduit(2, &token).await?;
     // println!("Created a conduit: {resulting_conduit:?}");
@@ -50,21 +47,20 @@ pub async fn run(
     let first_conduit = conduits.first().unwrap().clone();
 
     let transport = twitch_api::eventsub::Transport::conduit(first_conduit.id.clone());
-    let pajlada_user_id: UserId = user_id.clone().into();
     let bot_user_id: UserId = bot_config.bot_user_id.clone().into();
-    let res = client
+    let streamer_user_id: UserId = bot_config.streamer_user_id.clone().into();
+
+    match client
         .create_eventsub_subscription(
             twitch_api::eventsub::channel::ChannelChatMessageV1::new(
-                // self.user_id.clone(),
-                pajlada_user_id.clone(),
+                streamer_user_id.clone(),
                 bot_user_id.clone(),
             ),
             transport.clone(),
             &token,
         )
-        .await;
-
-    match res {
+        .await
+    {
         Ok(created_subscription) => {
             tracing::info!("Created subscription: {created_subscription:?}");
         }
@@ -80,12 +76,16 @@ pub async fn run(
                     if status == reqwest::StatusCode::CONFLICT {
                         tracing::info!("This subscription already exists!");
                     } else {
-                        panic!("Unhandled error creating sbuscription: {e:?}");
+                        return Err(e.into());
                     }
                 }
-                e => panic!("Ran into an unhandled error creating the subscription: {e:?}"),
+                e => {
+                    return Err(e.into());
+                }
             },
-            e => panic!("Ran into an unknown error creating the subscription: {e:?}"),
+            e => {
+                return Err(e.into());
+            }
         },
     }
 
@@ -94,7 +94,6 @@ pub async fn run(
         token: token.clone(),
         bot_user_id: bot_config.bot_user_id.clone().into(),
         client: client.clone(),
-        user_id: user_id.into(),
         connect_url: twitch_api::TWITCH_EVENTSUB_WEBSOCKET_URL.clone(),
         events,
         on_ready_sender: None,

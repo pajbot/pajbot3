@@ -30,8 +30,6 @@ pub struct WebsocketClient {
     pub bot_user_id: UserId,
     /// The client used to make requests to the Twitch API
     pub client: HelixClient<'static, reqwest::Client>,
-    /// The user id of the channel we want to listen to
-    pub user_id: UserId,
     /// The url to use for websocket
     pub connect_url: url::Url,
 
