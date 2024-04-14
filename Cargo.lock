@@ -3472,6 +3472,7 @@ dependencies = [
 [[package]]
 name = "twitch_api"
 version = "0.7.0-rc.7"
+source = "git+https://github.com/twitch-rs/twitch_api/#60d2408614a6322aca809784ac79240b2e795a78"
 dependencies = [
  "aliri_braid",
  "async-trait",
@@ -3498,6 +3499,7 @@ dependencies = [
 [[package]]
 name = "twitch_oauth2"
 version = "0.13.0"
+source = "git+https://github.com/twitch-rs/twitch_api/#60d2408614a6322aca809784ac79240b2e795a78"
 dependencies = [
  "aliri_braid",
  "async-trait",
@@ -3518,6 +3520,7 @@ dependencies = [
 [[package]]
 name = "twitch_types"
 version = "0.4.4"
+source = "git+https://github.com/twitch-rs/twitch_api/#60d2408614a6322aca809784ac79240b2e795a78"
 dependencies = [
  "serde",
  "serde_derive",
