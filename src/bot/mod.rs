@@ -38,9 +38,6 @@ pub async fn run(
     )
     .await?;
 
-    // let resulting_conduit = client.create_conduit(2, &token).await?;
-    // println!("Created a conduit: {resulting_conduit:?}");
-
     let conduits = client.get_conduits(&token).await?;
     println!("Conduits: {conduits:?}");
 
@@ -99,12 +96,10 @@ pub async fn run(
         on_ready_sender: None,
     };
 
-    let (join_handle, mut recv) = websocket_client.start()?;
+    let (join_handle, mut recv) = websocket_client.start(shutdown_signal)?;
 
     tokio::spawn(async move {
         while let Some(xd) = recv.recv().await {
-            tracing::info!("received {xd}");
-
             let shard = twitch_api::eventsub::Shard::new(
                 "1",
                 twitch_api::eventsub::Transport::websocket(xd),

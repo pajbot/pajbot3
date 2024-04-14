@@ -5,6 +5,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use dashmap::DashMap;
 use tokio_tungstenite::tungstenite;
+use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 use twitch_api::eventsub::channel::chat::message::ChannelChatMessageV1Payload;
 use twitch_api::twitch_oauth2::{TwitchToken, UserToken};
@@ -65,6 +66,7 @@ impl WebsocketClient {
 
     pub fn start(
         mut self,
+        shutdown_signal: CancellationToken,
     ) -> anyhow::Result<(
         tokio::task::JoinHandle<anyhow::Result<()>>,
         tokio::sync::mpsc::Receiver<String>,
@@ -72,14 +74,14 @@ impl WebsocketClient {
         let (sender, receiver) = tokio::sync::mpsc::channel(100);
 
         self.on_ready_sender = Some(sender);
-        let join_handle = tokio::spawn(async move { self.run().await });
+        let join_handle = tokio::spawn(async move { self.run(shutdown_signal).await });
 
         Ok((join_handle, receiver))
     }
 
     /// Run the websocket subscriber
     // #[tracing::instrument(name = "subscriber", skip_all, fields())]
-    pub async fn run(mut self) -> anyhow::Result<()> {
+    pub async fn run(mut self, shutdown_signal: CancellationToken) -> anyhow::Result<()> {
         // Establish the stream
         let mut s = self
             .connect()
@@ -87,25 +89,30 @@ impl WebsocketClient {
             .context("when establishing connection")?;
         // Loop over the stream, processing messages as they come in.
         loop {
-            tokio::select!(
-            Some(msg) = futures::StreamExt::next(&mut s) => {
-                let msg = match msg {
-                    Err(tungstenite::Error::Protocol(
-                        tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
-                    )) => {
-                        tracing::warn!(
-                            "connection was sent an unexpected frame or was reset, reestablishing it"
-                        );
-                        s = self
-                            .connect()
-                            .await
-                            .context("when reestablishing connection")?;
-                        continue
-                    }
-                    _ => msg.context("when getting message")?,
-                };
-                self.process_message(msg).await?
-            })
+            tokio::select! {
+                _ = shutdown_signal.cancelled() => {
+                    tracing::info!("Shutdown signal fired!!!!!!");
+                    break Ok(());
+                }
+                Some(msg) = futures::StreamExt::next(&mut s) => {
+                    let msg = match msg {
+                        Err(tungstenite::Error::Protocol(
+                            tungstenite::error::ProtocolError::ResetWithoutClosingHandshake,
+                        )) => {
+                            tracing::warn!(
+                                "connection was sent an unexpected frame or was reset, reestablishing it"
+                            );
+                            s = self
+                                .connect()
+                                .await
+                                .context("when reestablishing connection")?;
+                            continue
+                        }
+                        _ => msg.context("when getting message")?,
+                    };
+                    self.process_message(msg).await?
+                }
+            }
         }
     }
 

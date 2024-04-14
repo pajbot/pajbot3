@@ -11,6 +11,7 @@ use sea_orm::Database;
 use sea_orm_migration::MigratorTrait;
 use std::process::ExitCode;
 use std::sync::Arc;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use twitch_types::UserId;
 
@@ -84,6 +85,7 @@ async fn main_inner() -> anyhow::Result<()> {
         .context("Failed to run web server")?;
     let mut webserver_join_handle = tokio::spawn(webserver).fuse();
 
+    let mut bot_handles = JoinSet::new();
     for bot_config in config.twitch_bot.values() {
         tracing::info!("bot: {bot_config:?}");
         let mut bot_join_handle = bot::run(
@@ -95,6 +97,7 @@ async fn main_inner() -> anyhow::Result<()> {
         )
         .await
         .context("Failed to run bot")?;
+        bot_handles.spawn(bot_join_handle);
     }
 
     let os_shutdown_signal = shutdown::shutdown_signal().fuse();
@@ -102,7 +105,7 @@ async fn main_inner() -> anyhow::Result<()> {
 
     let mut result: anyhow::Result<()> = Ok(());
     loop {
-        if webserver_join_handle.is_terminated() {
+        if webserver_join_handle.is_terminated() && bot_handles.is_empty() {
             tracing::info!("Everything shut down successfully, ending");
             break;
         }
@@ -113,8 +116,8 @@ async fn main_inner() -> anyhow::Result<()> {
                 shutdown_signal.cancel();
             },
             // TODO
-            bot_res = &mut bot_join_handle => {
-                tracing::info!("bot res: {bot_res:?}");
+            bot_res = bot_handles.join_next() => {
+                tracing::info!("bot exited: {bot_res:?}");
             }
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
                 // two cases:

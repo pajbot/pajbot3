@@ -30,8 +30,6 @@ pub async fn run(
 ) -> anyhow::Result<BoxFuture<'static, std::io::Result<()>>> {
     let shared_state = WebAppData { config, db };
 
-    tracing::info!("xD");
-
     let cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST])
         .allow_headers(vec![
