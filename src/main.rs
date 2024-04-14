@@ -113,9 +113,9 @@ async fn main_inner() -> anyhow::Result<()> {
                 shutdown_signal.cancel();
             },
             // TODO
-            // bot_res = &mut bot_join_handle => {
-            //     tracing::info!("bot res: {bot_res:?}");
-            // }
+            bot_res = &mut bot_join_handle => {
+                tracing::info!("bot res: {bot_res:?}");
+            }
             webserver_result = (&mut webserver_join_handle), if !webserver_join_handle.is_terminated() => {
                 // two cases:
                 // - webserver ends on its own WITHOUT us sending the
