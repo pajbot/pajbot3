@@ -17,7 +17,7 @@
     "sass": "^1",
     "tailwindcss": "^3",
     "typescript": "^5",
-    "vite": "^5",
+    "vite": "^7",
     "vite-plugin-solid": "^2"
   },
   "dependencies": {
